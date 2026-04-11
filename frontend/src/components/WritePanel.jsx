@@ -1,43 +1,54 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Save, CalendarPlus, Check, X, ChevronDown } from 'lucide-react';
+import { Send, Save, CalendarPlus, Check, X, UploadCloud } from 'lucide-react';
 import './WritePanel.css';
 
 const ACTIONS = [
   { id: 'email',    label: 'Send Email',      icon: Send,        color: '#F87171' },
-  { id: 'drive',    label: 'Save to Drive',   icon: Save,        color: '#34D399' },
+  { id: 'drive',    label: 'Upload to Drive', icon: Save,        color: '#34D399' },
   { id: 'calendar', label: 'Create Event',    icon: CalendarPlus, color: '#60A5FA' },
 ];
 
 /**
  * WritePanel — professional compose / edit area for the right pane.
- *
- * Props:
- *   mode       {'compose'|'edit'}  — compose=blank, edit=pre-filled
- *   itemType   {'email'|'file'|'event'}
- *   initialData  { to, subject, body, title, date, time, name, content }
- *   onSubmit   {fn}  — async (actionId, data) => string (response)
- *   onClose    {fn}
  */
 export default function WritePanel({ mode = 'compose', itemType = 'email', initialData = {}, onSubmit, onClose }) {
   const getInitialFields = () => {
     if (itemType === 'email') return { to: initialData.to || '', subject: initialData.subject || '', body: initialData.body || '' };
     if (itemType === 'event') return { title: initialData.title || '', date: initialData.date || '', time: initialData.time || '', duration: initialData.duration || '' };
-    return { name: initialData.name || '', content: initialData.content || '' };
+    return { name: initialData.name || '', file: null };
   };
 
   const [fields, setFields]         = useState(getInitialFields);
   const [state, setState]           = useState('idle');   // idle|loading|success|error
   const [activeAction, setAction]   = useState(itemType === 'email' ? 'email' : itemType === 'event' ? 'calendar' : 'drive');
   const [errorMsg, setErrorMsg]     = useState('');
+  
+  const fileInputRef = useRef(null);
 
   const update = (key) => (e) => setFields(p => ({ ...p, [key]: e.target.value }));
+  
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+        setFields(p => ({ ...p, file: e.target.files[0], name: e.target.files[0].name }));
+    }
+  };
 
   const handleSubmit = async () => {
     setState('loading');
     setErrorMsg('');
     try {
-      const result = await onSubmit(activeAction, fields);
+      let submissionData = fields;
+      
+      // For Drive uploads, wrap into FormData
+      if (activeAction === 'drive' && fields.file) {
+          const formData = new FormData();
+          formData.append('file', fields.file);
+          submissionData = formData;
+      }
+      
+      const result = await onSubmit(activeAction, submissionData);
+      
       const lower = (result || '').toLowerCase();
       if (lower.includes('error') || lower.includes('fail')) {
         setErrorMsg(result);
@@ -84,7 +95,7 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
               aria-selected={activeAction === id}
               className={`write-panel__tab ${activeAction === id ? 'write-panel__tab--active' : ''}`}
               style={{ '--tab-color': color }}
-              onClick={() => setAction(id)}
+              onClick={() => { setAction(id); setFields({}); }}
               id={`tab-${id}`}
             >
               <Icon size={14} />
@@ -99,7 +110,7 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
         <AnimatePresence mode="wait">
 
           {/* Email fields */}
-          {(activeAction === 'email' || itemType === 'email') && (
+          {activeAction === 'email' && (
             <motion.div
               key="email-fields"
               className="write-panel__form"
@@ -108,14 +119,14 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              <WField id="wp-to"      label="To"      value={fields.to}      onChange={update('to')}      placeholder="recipient@example.com" />
-              <WField id="wp-subject" label="Subject" value={fields.subject} onChange={update('subject')} placeholder="Email subject…" />
-              <WField id="wp-body"    label="Body"    value={fields.body}    onChange={update('body')}    placeholder="Write your message…" type="textarea" rows={9} />
+              <WField id="wp-to"      label="To"      value={fields.to || ''}      onChange={update('to')}      placeholder="recipient@example.com" />
+              <WField id="wp-subject" label="Subject" value={fields.subject || ''} onChange={update('subject')} placeholder="Email subject…" />
+              <WField id="wp-body"    label="Body"    value={fields.body || ''}    onChange={update('body')}    placeholder="Write your message…" type="textarea" rows={9} />
             </motion.div>
           )}
 
           {/* Calendar / Event fields */}
-          {(activeAction === 'calendar' || itemType === 'event') && (
+          {activeAction === 'calendar' && (
             <motion.div
               key="event-fields"
               className="write-panel__form"
@@ -124,15 +135,15 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              <WField id="wp-title"    label="Event Title" value={fields.title}    onChange={update('title')}    placeholder="e.g. Team Standup" />
-              <WField id="wp-date"     label="Date"        value={fields.date}     onChange={update('date')}     placeholder="e.g. April 15, 2025" />
-              <WField id="wp-time"     label="Time"        value={fields.time}     onChange={update('time')}     placeholder="e.g. 10:00 AM" />
-              <WField id="wp-duration" label="Duration"    value={fields.duration} onChange={update('duration')} placeholder="e.g. 1 hour" />
+              <WField id="wp-title"    label="Event Title" value={fields.title || ''}    onChange={update('title')}    placeholder="e.g. Team Standup" />
+              <WField id="wp-date"     label="Date"        value={fields.date || ''}     onChange={update('date')}     placeholder="e.g. April 11, 2026" />
+              <WField id="wp-time"     label="Time"        value={fields.time || ''}     onChange={update('time')}     placeholder="e.g. 4:00 PM" />
+              <WField id="wp-duration" label="Duration"    value={fields.duration || ''} onChange={update('duration')} placeholder="e.g. 1 hour" />
             </motion.div>
           )}
 
           {/* Drive / File fields */}
-          {(activeAction === 'drive' && itemType !== 'email' && itemType !== 'event') && (
+          {activeAction === 'drive' && (
             <motion.div
               key="file-fields"
               className="write-panel__form"
@@ -141,8 +152,26 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              <WField id="wp-name"    label="File Name" value={fields.name}    onChange={update('name')}    placeholder="Document name…" />
-              <WField id="wp-content" label="Content"   value={fields.content} onChange={update('content')} placeholder="File content or notes…" type="textarea" rows={9} />
+              {mode === 'edit' ? (
+                <WField id="wp-name" label="File Name" value={fields.name || ''} onChange={update('name')} placeholder="Document name…" />
+              ) : (
+                <div className="write-field">
+                  <label className="write-field__label">Upload File</label>
+                  <div 
+                    className="write-panel__file-drop" 
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <UploadCloud size={24} color="var(--accent)" />
+                    <p>{fields.file ? fields.file.name : "Click to select a file from your computer"}</p>
+                    <input 
+                      type="file" 
+                      style={{ display: 'none' }} 
+                      onChange={handleFileChange} 
+                      ref={fileInputRef} 
+                    />
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -169,7 +198,7 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
             id="write-panel-submit-btn"
             className={`write-panel__submit ${isLoading ? 'write-panel__submit--loading' : ''} ${isSuccess ? 'write-panel__submit--success' : ''}`}
             onClick={handleSubmit}
-            disabled={isLoading}
+            disabled={isLoading || (activeAction === 'drive' && mode === 'compose' && !fields.file)}
             aria-label="Submit"
           >
             <AnimatePresence mode="wait">

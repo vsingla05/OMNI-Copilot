@@ -21,20 +21,25 @@ let _id = 0;
 function parseItemsFromText(text = '') {
   const items = [];
   text.split('\n').filter(Boolean).forEach(line => {
-    const emailMatch = line.match(/^From:\s*(.+?)\s*\|\s*Subject:\s*(.+)$/i);
+    // Attempt to grab actual backend ID if present
+    const idMatch = line.match(/^ID:\s*([^\s\|]+)\s*\|\s*(.*)$/i);
+    let id = idMatch ? idMatch[1] : `item-${++_id}`;
+    let content = idMatch ? idMatch[2] : line;
+
+    const emailMatch = content.match(/^From:\s*(.+?)\s*\|\s*Subject:\s*(.+)$/i);
     if (emailMatch) {
-      items.push({ id: `item-${++_id}`, type: 'email', status: 'sent',
-        data: { from: emailMatch[1], subject: emailMatch[2] } });
+      items.push({ id, type: 'email', status: 'sent', data: { from: emailMatch[1], subject: emailMatch[2] } });
     }
-    const fileMatch = line.match(/^File:\s*(.+)$/i);
+    const fileMatch = content.match(/^File:\s*(.+)$/i);
     if (fileMatch) {
-      items.push({ id: `item-${++_id}`, type: 'file', status: 'modified',
-        data: { name: fileMatch[1] } });
+      items.push({ id, type: 'file', status: 'modified', data: { name: fileMatch[1] } });
     }
-    const eventMatch = line.match(/^Event:\s*(.+?)\s+at\s+(.+)$/i);
-    if (eventMatch) {
-      items.push({ id: `item-${++_id}`, type: 'event', status: 'upcoming',
-        data: { title: eventMatch[1], start: eventMatch[2] } });
+    const eventMatch = content.match(/^Event:\s*(.+?)\s*\|\s*At:\s*(.+)$/i);
+    // Add fallback for old regex just in case
+    const eventMatchLegacy = content.match(/^Event:\s*(.+?)\s+at\s+(.+)$/i);
+    if (eventMatch || eventMatchLegacy) {
+      const match = eventMatch || eventMatchLegacy;
+      items.push({ id, type: 'event', status: 'upcoming', data: { title: match[1], start: match[2] } });
     }
   });
   return items;
@@ -152,12 +157,14 @@ function AppInner() {
   /* ── CRUD handlers ───────────────────────────── */
   const handleDelete = useCallback(async (item) => {
     try {
-      await axios.delete(`${API_BASE}/google-resource`, {
-        data: { id: item.id, type: item.type },
-      });
+      let endpoint = '';
+      if (item.type === 'email') endpoint = `/email/trash/${item.id}`;
+      else if (item.type === 'file') endpoint = `/drive/delete/${item.id}`;
+      else if (item.type === 'event') endpoint = `/calendar/delete/${item.id}`;
+      
+      await axios.delete(`${API_BASE}${endpoint}`);
       addToast(`${item.type} deleted`, 'success');
     } catch {
-      // Backend may not support it yet — still remove from UI
       addToast(`Removed from view`, 'info');
     }
   }, [addToast]);
@@ -165,17 +172,16 @@ function AppInner() {
   const handleUpdate = useCallback(async (actionId, fields) => {
     try {
       let endpoint = '';
-      if (actionId === 'email') endpoint = '/send-email';
-      else if (actionId === 'drive') endpoint = '/upload-to-drive';
-      else if (actionId === 'calendar') endpoint = '/create-event';
-      else endpoint = '/google-resource'; // For PATCH
+      if (actionId === 'email') endpoint = '/email/send';
+      else if (actionId === 'drive') endpoint = '/drive/upload';
+      else if (actionId === 'calendar') endpoint = '/calendar/create';
 
       const { data } = await axios.post(`${API_BASE}${endpoint}`, fields);
       addToast('Saved successfully!', 'success');
       return data.response || 'Saved successfully';
     } catch (err) {
        // fallback: post to /chat
-       const msg = `confirm ${actionId} action with: ${JSON.stringify(fields)}`;
+       const msg = `fallback error: ${err.message}`;
        return handleConfirmAction(msg);
     }
   }, [handleConfirmAction, addToast]);

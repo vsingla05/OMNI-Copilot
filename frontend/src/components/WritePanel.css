@@ -221,3 +221,30 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── File Drop ── */
+.write-panel__file-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 2px dashed var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 32px 20px;
+  background: var(--bg-body);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+
+.write-panel__file-drop:hover {
+  background: var(--accent-ultra);
+  border-color: var(--accent-light);
+}
+
+.write-panel__file-drop p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
