@@ -1,0 +1,74 @@
+/* ============================================================
+   OMNI COPILOT — Nordic Light Design System
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Palette */
+  --bg-body:         #F9FAFB;
+  --bg-panel:        #FFFFFF;
+  --bg-user-bubble:  #F3F4F6;
+  --bg-hover:        #F0F1F3;
+
+  /* Accent — Digital Lavender */
+  --accent:          #818CF8;
+  --accent-light:    #C7D2FE;
+  --accent-ultra:    #EEF2FF;
+  --accent-glow:     rgba(199, 210, 254, 0.55);
+
+  /* Text */
+  --text-primary:    #1F2937;
+  --text-secondary:  #6B7280;
+  --text-tertiary:   #9CA3AF;
+
+  /* Borders */
+  --border-soft:     rgba(199, 210, 254, 0.35);
+  --border-card:     rgba(199, 210, 254, 0.5);
+
+  /* Shadows */
+  --shadow-panel:    0 0 0 1px rgba(0,0,0,.03), 0 8px 40px rgba(0,0,0,.07);
+  --shadow-card:     0 2px 12px rgba(0,0,0,.06);
+  --shadow-input:    0 4px 24px rgba(129,140,248,.18);
+  --shadow-btn:      0 0 18px rgba(199,210,254,.6);
+
+  /* Radius */
+  --radius-sm:       8px;
+  --radius-md:       14px;
+  --radius-lg:       20px;
+  --radius-pill:     999px;
+
+  /* Transition */
+  --ease:            cubic-bezier(.4,0,.2,1);
+  --dur:             220ms;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--accent-light); border-radius: 99px; }
+
+/* Glassmorphism utility */
+.glass {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255,255,255,0.65);
+  border: 1px solid var(--border-soft);
+}

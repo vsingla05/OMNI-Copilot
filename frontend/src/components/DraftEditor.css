@@ -1,0 +1,312 @@
+/* ════════════════════════════════════════════════
+   DRAFT EDITOR — Nordic Light
+   ════════════════════════════════════════════════ */
+
+.draft-editor {
+  max-width: 480px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 28px rgba(129,140,248,.12), var(--shadow-card);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Header ── */
+.draft-editor__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--accent-ultra);
+}
+
+.draft-editor__header-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.draft-editor__header-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.draft-editor__header-sub {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.draft-editor__close {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.draft-editor__close:hover {
+  background: #FEE2E2;
+  color: #EF4444;
+  border-color: #FECACA;
+}
+
+/* ── Body ── */
+.draft-editor__body {
+  position: relative;
+  min-height: 80px;
+}
+
+.draft-form {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Fields ── */
+.draft-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.draft-field__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.draft-field__input {
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  background: var(--bg-body);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  outline: none;
+  width: 100%;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  resize: none;
+  line-height: 1.55;
+}
+
+.draft-field__input:focus {
+  border-color: var(--accent-light);
+  box-shadow: 0 0 0 3px rgba(199,210,254,.25);
+}
+
+.draft-field__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.draft-field__textarea {
+  min-height: 90px;
+}
+
+/* ── Actions ── */
+.draft-editor__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* ── Buttons ── */
+.draft-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--dur) var(--ease);
+}
+
+.draft-btn--cancel {
+  background: var(--bg-body);
+  border-color: var(--border-soft);
+  color: var(--text-secondary);
+}
+
+.draft-btn--cancel:hover {
+  background: #FEF2F2;
+  border-color: #FECACA;
+  color: #EF4444;
+}
+
+.draft-btn--confirm {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 14px rgba(129,140,248,.35);
+  animation: confirm-pulse 2.2s ease-in-out infinite;
+}
+
+.draft-btn--confirm:hover:not(:disabled) {
+  background: #6366F1;
+  box-shadow: 0 0 22px rgba(129,140,248,.55);
+}
+
+.draft-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  animation: none;
+  box-shadow: none;
+}
+
+.draft-btn--ghost {
+  background: transparent;
+  border-color: var(--border-card);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+.draft-btn--ghost:hover {
+  background: var(--accent-ultra);
+  color: var(--accent);
+  border-color: var(--accent-light);
+}
+
+/* Pulse on confirm button (streaming state) */
+@keyframes confirm-pulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(129,140,248,.35); }
+  50%       { box-shadow: 0 0 26px rgba(129,140,248,.65); }
+}
+
+/* ── State overlays ── */
+.draft-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  background: var(--bg-panel);
+  z-index: 2;
+  text-align: center;
+}
+
+.draft-overlay__text {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.draft-overlay__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.draft-overlay__sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Success */
+.draft-overlay--success {
+  background: linear-gradient(145deg, #F0FDF4, #ECFDF5);
+}
+
+.draft-checkmark {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #D1FAE5;
+  border: 2px solid #6EE7B7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #059669;
+  box-shadow: 0 0 24px rgba(52,211,153,.35);
+}
+
+/* Error */
+.draft-overlay--error {
+  background: linear-gradient(145deg, #FFF5F5, #FEF2F2);
+  color: #EF4444;
+}
+
+/* Spinner */
+.draft-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--accent-light);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Mini Calendar ── */
+.mini-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  background: var(--accent-ultra);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  margin-bottom: 4px;
+}
+
+.mini-calendar__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 2px;
+  border-radius: 8px;
+  transition: background var(--dur) var(--ease);
+}
+
+.mini-calendar__dow {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--text-tertiary);
+}
+
+.mini-calendar__num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.mini-calendar__day--today .mini-calendar__num {
+  color: var(--accent);
+}
+
+.mini-calendar__day--active {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.mini-calendar__day--active .mini-calendar__dow,
+.mini-calendar__day--active .mini-calendar__num {
+  color: #fff;
+}

@@ -1,0 +1,123 @@
+/* ════════════════════════════════════════════════
+   SUCCESS NOTIFICATION (Toast) — Nordic Light
+   ════════════════════════════════════════════════ */
+
+/* Fixed container — top-right corner */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none; /* allow clicks through when empty */
+  align-items: flex-end;
+}
+
+/* Individual toast */
+.toast {
+  pointer-events: all;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 12px 12px;
+  border-radius: var(--radius-md);
+  min-width: 260px;
+  max-width: 360px;
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,.10), 0 0 0 1px var(--border-soft);
+}
+
+/* ── Variants ── */
+.toast--success {
+  background: rgba(240,253,244,.92);
+  border: 1px solid rgba(110,231,183,.45);
+}
+
+.toast--error {
+  background: rgba(255,245,245,.92);
+  border: 1px solid rgba(252,165,165,.45);
+}
+
+.toast--info {
+  background: rgba(239,246,255,.92);
+  border: 1px solid rgba(147,197,253,.45);
+}
+
+/* ── Icon wrap ── */
+.toast__icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toast--success .toast__icon-wrap {
+  background: #D1FAE5;
+  color: #059669;
+  box-shadow: 0 0 10px rgba(52,211,153,.35);
+}
+
+.toast--error .toast__icon-wrap {
+  background: #FEE2E2;
+  color: #DC2626;
+  box-shadow: 0 0 10px rgba(252,165,165,.35);
+}
+
+.toast--info .toast__icon-wrap {
+  background: var(--accent-ultra);
+  color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* ── Message ── */
+.toast__message {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+/* ── Close ── */
+.toast__close {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.toast__close:hover {
+  color: var(--text-primary);
+  background: rgba(0,0,0,.06);
+}
+
+/* ── Progress bar (auto-dismiss indicator) ── */
+.toast__progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  transform-origin: left;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.toast--success .toast__progress { background: #34D399; }
+.toast--error   .toast__progress { background: #F87171; }
+.toast--info    .toast__progress { background: var(--accent); }
