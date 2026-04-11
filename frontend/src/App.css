@@ -34,11 +34,14 @@
   border-bottom: 1px solid var(--border-soft);
   background: var(--bg-panel);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .app-topbar__inner {
-  max-width: 680px;
-  margin: 0 auto;
+  flex: 1;
+  min-width: 0;
 }
 
 .app-topbar__title {
@@ -53,15 +56,29 @@
 }
 
 .app-topbar__star {
-  color: var(--accent);
   font-size: 17px;
-  filter: drop-shadow(0 0 7px var(--accent-glow));
+  filter: drop-shadow(0 0 7px currentColor);
+  transition: color 0.3s ease;
 }
 
 .app-topbar__sub {
   font-size: 12px;
   color: var(--text-tertiary);
   margin-top: 3px;
+}
+
+.app-topbar__context-pill {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ctx-color, var(--accent));
+  background: color-mix(in srgb, var(--ctx-color, var(--accent)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ctx-color, var(--accent)) 25%, transparent);
+  transition: all 0.3s ease;
 }
 
 /* ── Chat scrollable area ── */

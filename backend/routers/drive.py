@@ -1,7 +1,7 @@
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from auth import get_google_services
+from core.auth import get_google_services
 from typing import Optional
 
 router = APIRouter(prefix="/drive", tags=["Drive"])

@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, ChevronRight, Settings, FileText, MessageSquare, HardDrive } from 'lucide-react';
+import { X, CheckCircle2, ChevronRight, Settings, FileText, MessageSquare, HardDrive, Hash, Sparkles } from 'lucide-react';
 import './IntegrationsModal.css';
 
 import axios from 'axios';
 
 const INITIAL_PLATFORMS = [
-  { id: 'google', name: 'Google Workspace', icon: HardDrive, status: 'connected', color: '#10B981' },
-  { id: 'notion', name: 'Notion', icon: FileText, status: 'disconnected', color: '#000000' },
-  { id: 'discord', name: 'Discord', icon: MessageSquare, status: 'disconnected', color: '#5865F2' },
-  { id: 'local', name: 'Local Files', icon: Settings, status: 'toggle', color: '#6B7280' }
+  { id: 'google',  name: 'Google Workspace', icon: HardDrive,    status: 'connected', color: '#10B981' },
+  { id: 'notion',  name: 'Notion',           icon: FileText,     status: 'disconnected', color: '#000000' },
+  { id: 'discord', name: 'Discord',          icon: MessageSquare, status: 'disconnected', color: '#5865F2' },
+  { id: 'slack',   name: 'Slack',            icon: Hash,         status: 'disconnected', color: '#E01E5A' },
+  { id: 'gemini',  name: 'Gemini AI (LLM)',  icon: Sparkles,     status: 'disconnected', color: '#818CF8' },
+  { id: 'local',   name: 'Local Files',      icon: Settings,     status: 'toggle', color: '#6B7280' },
 ];
 
 export default function IntegrationsModal({ isOpen, onClose }) {
   const [activeInput, setActiveInput] = useState(null);
-  const [keys, setKeys] = useState({ notion: '', discord: '' });
+  const [keys, setKeys] = useState({ notion: '', discord: '', slack: '', gemini: '' });
   const [localEnabled, setLocalEnabled] = useState(true);
   const [platforms, setPlatforms] = useState(INITIAL_PLATFORMS);
 
@@ -22,10 +24,9 @@ export default function IntegrationsModal({ isOpen, onClose }) {
     const key = keys[platId]?.trim();
     if (key && key.length > 0) {
       try {
-        await axios.post('http://localhost:8000/update-keys', {
-          notion: platId === 'notion' ? key : '',
-          discord: platId === 'discord' ? key : ''
-        });
+        const payload = { notion: '', discord: '', slack: '', gemini: '' };
+        payload[platId] = key;
+        await axios.post('http://localhost:8000/update-keys', payload);
         setPlatforms(prev => prev.map(p => p.id === platId ? { ...p, status: 'connected' } : p));
       } catch (err) {
         console.error("Failed to update keys:", err);

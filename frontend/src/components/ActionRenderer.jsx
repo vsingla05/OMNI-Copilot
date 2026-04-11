@@ -116,6 +116,40 @@ export default function ActionRenderer({ text, onConfirmAction }) {
       return <DiscordFeedCard key={i} server={discordMatch[1]} channel={discordMatch[2]} author={discordMatch[3]} message={discordMatch[4]} />;
     }
 
+    // Slack Feed Card
+    const slackMatch = content.match(/^Slack\s*\|\s*User:\s*(.*?)\s*\|\s*Msg:\s*(.+)$/i);
+    if (slackMatch) {
+      return <MiniFeedCard key={i} platform="Slack" color="#E01E5A" author={slackMatch[1]} message={slackMatch[2]} />;
+    }
+
+    // Notion Page Card
+    const notionMatch = content.match(/^Notion:\s*(.+?)\s*\|\s*Title:\s*(.+)$/i);
+    if (notionMatch) {
+      return <MiniIconCard key={i} platform="Notion" color="#1a1a1a" title={notionMatch[2]} icon="📄" />;
+    }
+
+    // Local Files (Code Explorer)
+    const codeMatch = content.match(/^(📁|📄)\s*(.+?)\s*(?:\((.*?)\))?$/);
+    if (codeMatch && !line.includes('File:')) {
+      return <MiniIconCard key={i} platform="Code" color="#A78BFA" title={codeMatch[2]} subtitle={codeMatch[3] || 'System Dir'} icon={codeMatch[1]} />;
+    }
+
+    // Google Forms Response
+    const formMatch = content.match(/^Response\s*\d+:\s*(.+)$/i);
+    if (formMatch) {
+      return <MiniFeedCard key={i} platform="Forms" color="#FBBF24" author="Respondent" message={formMatch[1]} />;
+    }
+    
+    // Google Forms Link
+    const formLinkMatch = content.match(/^Form URL:\s*(https:\/\/.*)$/i);
+    if (formLinkMatch) {
+      return (
+        <a key={i} href={formLinkMatch[1]} target="_blank" rel="noreferrer" className="action-renderer__form-link">
+          Open Google Form ↗
+        </a>
+      );
+    }
+
     // Plain text
     return (
       <p key={i} className="action-renderer__text">{line}</p>
@@ -127,6 +161,31 @@ export default function ActionRenderer({ text, onConfirmAction }) {
   return (
     <div className={`action-renderer ${hasCards ? 'action-renderer--cards' : ''}`}>
       {nodes}
+    </div>
+  );
+}
+
+/* ─── Shared UI Cards for new platforms ─────────────────── */
+function MiniFeedCard({ platform, color, author, message }) {
+  return (
+    <div className="mini-feed-card" style={{ '--pf-color': color }}>
+      <div className="mini-feed-card__header">
+        <span className="mini-feed-card__pf">{platform}</span>
+        <span className="mini-feed-card__author">{author}</span>
+      </div>
+      <p className="mini-feed-card__msg">{message}</p>
+    </div>
+  );
+}
+
+function MiniIconCard({ platform, color, title, subtitle, icon }) {
+  return (
+    <div className="mini-icon-card" style={{ '--pf-color': color }}>
+      <div className="mini-icon-card__icon">{icon}</div>
+      <div className="mini-icon-card__info">
+        <p className="mini-icon-card__title">{title}</p>
+        {subtitle && <p className="mini-icon-card__sub">{subtitle}</p>}
+      </div>
     </div>
   );
 }

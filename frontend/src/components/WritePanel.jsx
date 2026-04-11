@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Save, CalendarPlus, Check, X, UploadCloud, FileText, ChevronDown } from 'lucide-react';
+import { Send, Save, CalendarPlus, Check, X, UploadCloud, FileText, ChevronDown, MessageSquare, ClipboardList, Code } from 'lucide-react';
 import './WritePanel.css';
 
 const ACTIONS = [
@@ -8,6 +8,8 @@ const ACTIONS = [
   { id: 'document', label: 'Document',     icon: FileText,    color: '#818CF8' },
   { id: 'drive',    label: 'Upload File',  icon: Save,        color: '#34D399' },
   { id: 'calendar', label: 'Event',        icon: CalendarPlus, color: '#60A5FA' },
+  { id: 'message',  label: 'Message',      icon: MessageSquare, color: '#5865F2' },
+  { id: 'form',     label: 'Form',         icon: ClipboardList, color: '#FBBF24' },
 ];
 
 /**
@@ -18,12 +20,14 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
     if (itemType === 'email') return { to: initialData.to || '', subject: initialData.subject || '', body: initialData.body || '' };
     if (itemType === 'event') return { title: initialData.title || '', date: initialData.date || '', time: initialData.time || '', duration: initialData.duration || '' };
     if (itemType === 'document') return { title: initialData.title || '', body: initialData.body || '', destination: 'docs' };
+    if (itemType === 'message') return { channel: initialData.channel || 'general', body: initialData.body || '' };
+    if (itemType === 'form') return { title: initialData.title || '', questions: initialData.questions || '' };
     return { name: initialData.name || '', file: null };
   };
 
   const [fields, setFields]         = useState(getInitialFields);
   const [state, setState]           = useState('idle');   // idle|loading|success|error
-  const [activeAction, setAction]   = useState(itemType === 'email' ? 'email' : itemType === 'event' ? 'calendar' : itemType === 'document' ? 'document' : 'drive');
+  const [activeAction, setAction]   = useState(['email', 'event', 'document', 'message', 'form'].includes(itemType) ? (itemType === 'event' ? 'calendar' : itemType) : 'drive');
   const [errorMsg, setErrorMsg]     = useState('');
   
   const fileInputRef = useRef(null);
@@ -204,6 +208,36 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
                   </div>
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* Social Message fields (Discord/Slack) */}
+          {activeAction === 'message' && (
+            <motion.div
+              key="message-fields"
+              className="write-panel__form"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.18 }}
+            >
+              <WField id="wp-channel" label="Channel" value={fields.channel || ''} onChange={update('channel')} placeholder="e.g. general" />
+              <WField id="wp-msg-body" label="Message" value={fields.body || ''} onChange={update('body')} placeholder="Type your message..." type="textarea" rows={6} />
+            </motion.div>
+          )}
+
+          {/* Form builder fields */}
+          {activeAction === 'form' && (
+            <motion.div
+              key="form-fields"
+              className="write-panel__form"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.18 }}
+            >
+              <WField id="wp-form-title" label="Form Title" value={fields.title || ''} onChange={update('title')} placeholder="Customer Feedback Survey" />
+              <WField id="wp-form-questions" label="Questions (one per line)" value={fields.questions || ''} onChange={update('questions')} placeholder="How satisfied are you?\nWould you recommend us?" type="textarea" rows={8} />
             </motion.div>
           )}
         </AnimatePresence>

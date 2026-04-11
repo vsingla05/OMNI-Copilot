@@ -4,18 +4,24 @@ import { Check, X } from 'lucide-react';
 import PlatformPill from './PlatformPill';
 import './NotionEditor.css';
 
-export default function NotionEditor({ initialTitle = '', initialBody = '', onClose }) {
+export default function NotionEditor({ initialTitle = '', initialBody = '', onPush, onClose }) {
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
   const [status, setStatus] = useState('idle'); // idle|saving|saved
 
-  const handlePush = () => {
+  const handlePush = async () => {
     if (status !== 'idle') return;
     setStatus('saving');
-    setTimeout(() => {
+    try {
+      if (onPush) {
+        await onPush(title, body);
+      }
       setStatus('saved');
       setTimeout(() => setStatus('idle'), 2500);
-    }, 1500);
+    } catch (e) {
+      console.error(e);
+      setStatus('idle');
+    }
   };
 
   return (

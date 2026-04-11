@@ -49,3 +49,80 @@
   font-weight: 500;
   color: #065F46;
 }
+
+/* ── Mini Cards (Slack, Notion, Code, Forms) ── */
+.mini-feed-card, .mini-icon-card {
+  display: flex;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--pf-color, var(--border-soft));
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 2px;
+  max-width: 480px;
+}
+
+.mini-feed-card {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mini-feed-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.mini-feed-card__pf {
+  font-weight: 600;
+  color: var(--pf-color, var(--text-primary));
+}
+
+.mini-feed-card__author {
+  color: var(--text-tertiary);
+}
+
+.mini-feed-card__msg {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.mini-icon-card {
+  align-items: center;
+  gap: 12px;
+}
+
+.mini-icon-card__icon {
+  font-size: 18px;
+}
+
+.mini-icon-card__title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.mini-icon-card__sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.action-renderer__form-link {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-size: 14.5px;
+  font-weight: 500;
+  max-width: fit-content;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.action-renderer__form-link:hover {
+  opacity: 0.9;
+}

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from auth import get_google_services
+from core.auth import get_google_services
 from email.message import EmailMessage
 import base64
 

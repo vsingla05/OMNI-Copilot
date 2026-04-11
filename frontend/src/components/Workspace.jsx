@@ -171,12 +171,13 @@ export default function Workspace({ section, items = [], onDelete, onUpdate, isO
                     <NotionEditor
                       initialTitle={editItem?.data?.title || ''}
                       initialBody={editItem?.data?.body || ''}
+                      onPush={(title, body) => handleSubmit('document', { destination: 'notion', title, body })}
                       onClose={localItems.length > 0 ? () => setMode('inventory') : undefined}
                     />
                   ) : (
                     <WritePanel
                       mode={editItem ? 'edit' : 'compose'}
-                      itemType={editItem?.type || (section === 'calendar' ? 'event' : section === 'files' ? 'file' : 'email')}
+                      itemType={editItem?.type || (['discord', 'slack'].includes(section) ? 'message' : section === 'forms' ? 'form' : section === 'code' ? 'code' : section === 'calendar' ? 'event' : section === 'files' ? 'file' : 'email')}
                       initialData={editItem?.data || {}}
                       onSubmit={handleSubmit}
                       onClose={localItems.length > 0 ? () => setMode('inventory') : undefined}
@@ -194,9 +195,15 @@ export default function Workspace({ section, items = [], onDelete, onUpdate, isO
 }
 
 /* ─── Section metadata ───────────────────────── */
+import { FileText, MessageSquare, Hash, Code, ClipboardList } from 'lucide-react';
 const SECTION_META = {
   mail:     { title: 'Mail',     sub: 'Emails & Drafts',     icon: Mail,      color: '#F87171' },
   files:    { title: 'Drive',    sub: 'Files & Documents',    icon: HardDrive, color: '#34D399' },
   calendar: { title: 'Calendar', sub: 'Events & Schedule',    icon: Calendar,  color: '#60A5FA' },
   chat:     { title: 'Chat',     sub: 'AI Conversation',      icon: Inbox,     color: '#818CF8' },
+  notion:   { title: 'Notion',   sub: 'Pages & Docs',         icon: FileText,  color: '#000000' },
+  discord:  { title: 'Discord',  sub: 'Messages & Channels',  icon: MessageSquare, color: '#5865F2' },
+  slack:    { title: 'Slack',    sub: 'Conversations & Threads', icon: Hash,  color: '#E01E5A' },
+  code:     { title: 'Code',     sub: 'Local Files & Folders', icon: Code,      color: '#A78BFA' },
+  forms:    { title: 'Forms',    sub: 'Surveys & Feedback',   icon: ClipboardList, color: '#FBBF24' },
 };

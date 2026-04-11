@@ -19,9 +19,15 @@ function SkeletonLoader() {
 
 /* ─── Detect which model/service responded ─── */
 function detectModel(text = '') {
-  if (text.toLowerCase().includes('inbox') || /from:.+subject:/i.test(text)) return 'Gmail Agent';
-  if (/file:/i.test(text)) return 'Drive Agent';
-  if (/event:/i.test(text)) return 'Calendar Agent';
+  const lower = text.toLowerCase();
+  if (lower.includes('inbox') || /from:.+subject:/i.test(text)) return 'Gmail Agent';
+  if (/file:/i.test(text))      return 'Drive Agent';
+  if (/event:/i.test(text))     return 'Calendar Agent';
+  if (/discord:/i.test(text))   return 'Discord Agent';
+  if (/notion:/i.test(text))    return 'Notion Agent';
+  if (/slack/i.test(text))      return 'Slack Agent';
+  if (/directory/i.test(text))  return 'Code Agent';
+  if (/form/i.test(text))       return 'Forms Agent';
   return 'Omni Agent';
 }
 

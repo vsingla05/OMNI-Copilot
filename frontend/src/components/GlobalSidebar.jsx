@@ -1,28 +1,25 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  MessageSquare, HardDrive, Mail, Calendar,
-  ChevronLeft, ChevronRight, PenSquare, Search,
-  Settings
+  Mail, Calendar, HardDrive, FileText, MessageSquare,
+  Hash, Code, ClipboardList,
+  ChevronLeft, ChevronRight, PenSquare, Settings,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './GlobalSidebar.css';
 
 const NAV_ITEMS = [
-  { id: 'chat',     label: 'Chat',     icon: MessageSquare },
-  { id: 'mail',     label: 'Mail',     icon: Mail,         dot: '#F87171' },
-  { id: 'files',    label: 'Files',    icon: HardDrive,    dot: '#34D399' },
-  { id: 'calendar', label: 'Calendar', icon: Calendar,     dot: '#60A5FA' },
+  { id: 'email',    label: 'Email',    icon: Mail,          dot: '#F87171' },
+  { id: 'calendar', label: 'Calendar', icon: Calendar,      dot: '#60A5FA' },
+  { id: 'drive',    label: 'Drive',    icon: HardDrive,     dot: '#34D399' },
+  { id: 'notion',   label: 'Notion',   icon: FileText,      dot: '#000000' },
+  { id: 'discord',  label: 'Discord',  icon: MessageSquare, dot: '#5865F2' },
+  { id: 'slack',    label: 'Slack',    icon: Hash,          dot: '#E01E5A' },
+  { id: 'code',     label: 'Code',     icon: Code,          dot: '#A78BFA' },
+  { id: 'forms',    label: 'Forms',    icon: ClipboardList, dot: '#FBBF24' },
 ];
 
 /**
- * GlobalSidebar — slim left navigation for the full app.
- * Props:
- *   activeSection   {string}  'chat'|'mail'|'files'|'calendar'
- *   onSectionChange {fn}
- *   onCompose       {fn}      open WritePanel in right pane
- *   collapsed       {boolean}
- *   onCollapse      {fn}
- *   onSettingsClick {fn}
+ * GlobalSidebar — slim left navigation for 8 context tabs.
  */
 export default function GlobalSidebar({ activeSection, onSectionChange, onCompose, collapsed, onCollapse, onSettingsClick }) {
   return (
@@ -63,7 +60,7 @@ export default function GlobalSidebar({ activeSection, onSectionChange, onCompos
               aria-current={isActive ? 'page' : undefined}
             >
               <span className="global-sidebar__item-icon">
-                <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
+                <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
               </span>
               <AnimatePresence>
                 {!collapsed && (
