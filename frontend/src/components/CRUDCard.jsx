@@ -2,8 +2,9 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, Edit2, Trash2, Mail, HardDrive, Calendar,
-  FileText, Image, Sheet, Presentation, Clock, User,
+  FileText, Image, Sheet, Presentation, Clock, User, MessageSquare
 } from 'lucide-react';
+import PlatformPill from './PlatformPill';
 import './CRUDCard.css';
 
 /**
@@ -50,6 +51,10 @@ export default function CRUDCard({ item, onEdit, onDelete, onQuickView }) {
       role="article"
       aria-label={`${item.type} item`}
     >
+      <div className="crud-card__platform-badge">
+        <PlatformPill platform={item.type === 'file' ? 'drive' : item.type === 'notion' ? 'notion' : item.type === 'discord' ? 'discord' : 'gmail'} />
+      </div>
+
       {/* Left icon / avatar */}
       <CardIcon item={item} />
 

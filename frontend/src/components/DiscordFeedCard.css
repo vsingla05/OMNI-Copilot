@@ -1,0 +1,123 @@
+.discord-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid rgba(88, 101, 242, 0.15);
+  box-shadow: 0 4px 12px rgba(88, 101, 242, 0.05);
+  overflow: hidden;
+  margin-top: 12px;
+  max-width: 440px;
+}
+
+.discord-card__header {
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #F3F4F6;
+  background: #F9FAFB;
+}
+
+.discord-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.discord-card__server {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1F2937;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.discord-card__channel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6B7280;
+}
+
+.discord-card__body {
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+}
+
+.discord-card__avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #5865F2;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discord-card__content {
+  flex: 1;
+}
+
+.discord-card__author {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.discord-card__message {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.discord-card__footer {
+  padding: 10px 14px;
+  border-top: 1px solid #F3F4F6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+}
+
+.discord-card__footer input {
+  flex: 1;
+  background: #F3F4F6;
+  border: none;
+  outline: none;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #1F2937;
+}
+
+.discord-card__send-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #E5E7EB;
+  color: #6B7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.discord-card__send-btn:not(:disabled):hover {
+  background: #5865F2;
+  color: #FFFFFF;
+}
+
+.discord-card__send-btn--active {
+  background: #10B981;
+  color: #FFFFFF;
+}
+
+.spin-slow {
+  animation: spin 2s linear infinite;
+}

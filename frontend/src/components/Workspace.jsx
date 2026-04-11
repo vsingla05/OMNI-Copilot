@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, HardDrive, Calendar, PenSquare, Inbox } from 'lucide-react';
 import CRUDCard from './CRUDCard';
 import WritePanel from './WritePanel';
+import NotionEditor from './NotionEditor';
 import './Workspace.css';
 
 /**
@@ -156,7 +157,7 @@ export default function Workspace({ section, items = [], onDelete, onUpdate, isO
                 </motion.div>
               )}
 
-              {/* Editor — WritePanel */}
+              {/* Editor — WritePanel or NotionEditor */}
               {mode === 'editor' && (
                 <motion.div
                   key="editor"
@@ -166,13 +167,21 @@ export default function Workspace({ section, items = [], onDelete, onUpdate, isO
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <WritePanel
-                    mode={editItem ? 'edit' : 'compose'}
-                    itemType={editItem?.type || section === 'calendar' ? 'event' : section === 'files' ? 'file' : 'email'}
-                    initialData={editItem?.data || {}}
-                    onSubmit={handleSubmit}
-                    onClose={localItems.length > 0 ? () => setMode('inventory') : undefined}
-                  />
+                  {(editItem?.type === 'notion' || section === 'notion') ? (
+                    <NotionEditor
+                      initialTitle={editItem?.data?.title || ''}
+                      initialBody={editItem?.data?.body || ''}
+                      onClose={localItems.length > 0 ? () => setMode('inventory') : undefined}
+                    />
+                  ) : (
+                    <WritePanel
+                      mode={editItem ? 'edit' : 'compose'}
+                      itemType={editItem?.type || (section === 'calendar' ? 'event' : section === 'files' ? 'file' : 'email')}
+                      initialData={editItem?.data || {}}
+                      onSubmit={handleSubmit}
+                      onClose={localItems.length > 0 ? () => setMode('inventory') : undefined}
+                    />
+                  )}
                 </motion.div>
               )}
 

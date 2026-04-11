@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   MessageSquare, HardDrive, Mail, Calendar,
   ChevronLeft, ChevronRight, PenSquare, Search,
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './GlobalSidebar.css';
@@ -21,8 +22,9 @@ const NAV_ITEMS = [
  *   onCompose       {fn}      open WritePanel in right pane
  *   collapsed       {boolean}
  *   onCollapse      {fn}
+ *   onSettingsClick {fn}
  */
-export default function GlobalSidebar({ activeSection, onSectionChange, onCompose, collapsed, onCollapse }) {
+export default function GlobalSidebar({ activeSection, onSectionChange, onCompose, collapsed, onCollapse, onSettingsClick }) {
   return (
     <aside
       className={`global-sidebar ${collapsed ? 'global-sidebar--collapsed' : ''}`}
@@ -108,6 +110,15 @@ export default function GlobalSidebar({ activeSection, onSectionChange, onCompos
             </motion.span>
           )}
         </AnimatePresence>
+      </button>
+
+      {/* Settings toggle */}
+      <button
+        className="global-sidebar__settings"
+        onClick={onSettingsClick}
+        aria-label="Integrations Hub"
+      >
+        <Settings size={18} />
       </button>
 
       {/* Collapse toggle */}

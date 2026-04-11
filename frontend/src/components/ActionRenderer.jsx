@@ -1,6 +1,7 @@
 import React from 'react';
 import { EmailCard, DriveCard, CalendarCard } from './ActionCards';
 import { EmailDraftEditor, CalendarDraftEditor } from './DraftEditor';
+import DiscordFeedCard from './DiscordFeedCard';
 import { motion } from 'framer-motion';
 import './ActionRenderer.css';
 
@@ -85,22 +86,34 @@ export default function ActionRenderer({ text, onConfirmAction }) {
       return <SuccessBadge key={i} message={line} />;
     }
 
+    // Extract ID if present so it doesn't break normal regexs
+    const idMatch = line.match(/^ID:\s*([^\s\|]+)\s*\|\s*(.*)$/i);
+    let content = idMatch ? idMatch[2] : line;
+
     // Email READ card
-    const emailMatch = line.match(/^From:\s*(.+?)\s*\|\s*Subject:\s*(.+)$/i);
+    const emailMatch = content.match(/^From:\s*(.+?)\s*\|\s*Subject:\s*(.+)$/i);
     if (emailMatch) {
       return <EmailCard key={i} from={emailMatch[1]} subject={emailMatch[2]} />;
     }
 
     // Drive card
-    const fileMatch = line.match(/^File:\s*(.+)$/i);
+    const fileMatch = content.match(/^File:\s*(.+)$/i);
     if (fileMatch) {
       return <DriveCard key={i} filename={fileMatch[1]} />;
     }
 
     // Calendar READ card
-    const eventMatch = line.match(/^Event:\s*(.+?)\s+at\s+(.+)$/i);
-    if (eventMatch) {
-      return <CalendarCard key={i} eventName={eventMatch[1]} dateStr={eventMatch[2]} />;
+    const eventMatch = content.match(/^Event:\s*(.+?)\s*\|\s*At:\s*(.+)$/i);
+    const eventMatchLegacy = content.match(/^Event:\s*(.+?)\s+at\s+(.+)$/i);
+    if (eventMatch || eventMatchLegacy) {
+      const match = eventMatch || eventMatchLegacy;
+      return <CalendarCard key={i} eventName={match[1]} dateStr={match[2]} />;
+    }
+    
+    // Discord Feed Card
+    const discordMatch = content.match(/^Discord:\s*(.+?)\s*\|\s*Channel:\s*(.+?)\s*\|\s*Author:\s*(.+?)\s*\|\s*Msg:\s*(.+)$/i);
+    if (discordMatch) {
+      return <DiscordFeedCard key={i} server={discordMatch[1]} channel={discordMatch[2]} author={discordMatch[3]} message={discordMatch[4]} />;
     }
 
     // Plain text

@@ -4,6 +4,7 @@ import GlobalSidebar from './components/GlobalSidebar';
 import MessageList from './components/MessageList';
 import ChatInput from './components/ChatInput';
 import Workspace from './components/Workspace';
+import IntegrationsModal from './components/IntegrationsModal';
 import { ToastProvider, useToast } from './components/SuccessNotification';
 import './App.css';
 
@@ -35,11 +36,18 @@ function parseItemsFromText(text = '') {
       items.push({ id, type: 'file', status: 'modified', data: { name: fileMatch[1] } });
     }
     const eventMatch = content.match(/^Event:\s*(.+?)\s*\|\s*At:\s*(.+)$/i);
-    // Add fallback for old regex just in case
     const eventMatchLegacy = content.match(/^Event:\s*(.+?)\s+at\s+(.+)$/i);
     if (eventMatch || eventMatchLegacy) {
       const match = eventMatch || eventMatchLegacy;
       items.push({ id, type: 'event', status: 'upcoming', data: { title: match[1], start: match[2] } });
+    }
+    const discordMatch = content.match(/^Discord:\s*(.+?)\s*\|\s*Channel:\s*(.+?)\s*\|\s*Author:\s*(.+?)\s*\|\s*Msg:\s*(.+)$/i);
+    if (discordMatch) {
+      items.push({ id, type: 'discord', status: 'read', data: { server: discordMatch[1], channel: discordMatch[2], author: discordMatch[3], message: discordMatch[4] } });
+    }
+    const notionMatch = content.match(/^Notion:\s*(.+?)\s*\|\s*Title:\s*(.+)$/i);
+    if (notionMatch) {
+      items.push({ id, type: 'notion', status: 'draft', data: { workspace: notionMatch[1], title: notionMatch[2] } });
     }
   });
   return items;
@@ -56,6 +64,7 @@ function AppInner() {
   const [activeSection, setActiveSection]       = useState('chat');
   const [isMobile, setIsMobile]                 = useState(window.innerWidth < 900);
   const [mobileTab, setMobileTab]               = useState('chat'); // 'chat' | 'workspace'
+  const [isIntegrationsOpen, setIntegrationsOpen] = useState(false);
 
   // Chat state
   const [messages, setMessages]   = useState([WELCOME]);
@@ -170,6 +179,13 @@ function AppInner() {
   }, [addToast]);
 
   const handleUpdate = useCallback(async (actionId, fields) => {
+    // Intercept Document "Push" commands natively to LLM simulation
+    if (actionId === 'document') {
+      const destination = fields.destination === 'notion' ? 'Notion' : 'Google Docs';
+      const command = `Please create a ${destination} page titled "${fields.title}" with the content "${fields.body}".`;
+      return handleConfirmAction(command);
+    }
+
     try {
       let endpoint = '';
       if (actionId === 'email') endpoint = '/email/send';
@@ -226,6 +242,12 @@ function AppInner() {
         onCompose={handleCompose}
         collapsed={sidebarCollapsed}
         onCollapse={() => setSidebarCollapsed(c => !c)}
+        onSettingsClick={() => setIntegrationsOpen(true)}
+      />
+
+      <IntegrationsModal 
+        isOpen={isIntegrationsOpen} 
+        onClose={() => setIntegrationsOpen(false)} 
       />
 
       {isMobile ? (

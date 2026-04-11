@@ -1,0 +1,109 @@
+.notion-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #FFFFFF;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+}
+
+.notion-editor__topbar {
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.notion-editor__close {
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+.notion-editor__close:hover {
+  background: #F3F4F6;
+  color: #4B5563;
+}
+
+.notion-editor__content {
+  flex: 1;
+  padding: 40px 60px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.notion-editor__title {
+  border: none;
+  outline: none;
+  font-size: 40px;
+  font-weight: 800;
+  color: #111827;
+  width: 100%;
+  margin-bottom: 16px;
+  font-family: inherit;
+  background: transparent;
+}
+.notion-editor__title::placeholder {
+  color: #E5E7EB;
+}
+
+.notion-editor__body {
+  border: none;
+  outline: none;
+  resize: none;
+  flex: 1;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #374151;
+  font-family: inherit;
+  background: transparent;
+}
+
+.notion-editor__footer {
+  padding: 24px 60px;
+  display: flex;
+  justify-content: flex-end;
+  background: linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0));
+}
+
+.notion-editor__push-btn {
+  background: #C7D2FE;
+  color: #1F2937;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+  display: flex;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(199, 210, 254, 0.4);
+}
+
+.notion-editor__push-btn:hover {
+  background: #A5B4FC;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(199, 210, 254, 0.6);
+}
+
+.notion-editor__push-btn--wait {
+  background: #E5E7EB;
+  color: #6B7280;
+  box-shadow: none;
+  transform: none;
+  cursor: default;
+}
+
+.notion-editor__btn-saved {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #059669;
+}

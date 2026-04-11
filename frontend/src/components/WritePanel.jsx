@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Save, CalendarPlus, Check, X, UploadCloud } from 'lucide-react';
+import { Send, Save, CalendarPlus, Check, X, UploadCloud, FileText, ChevronDown } from 'lucide-react';
 import './WritePanel.css';
 
 const ACTIONS = [
-  { id: 'email',    label: 'Send Email',      icon: Send,        color: '#F87171' },
-  { id: 'drive',    label: 'Upload to Drive', icon: Save,        color: '#34D399' },
-  { id: 'calendar', label: 'Create Event',    icon: CalendarPlus, color: '#60A5FA' },
+  { id: 'email',    label: 'Email',        icon: Send,        color: '#F87171' },
+  { id: 'document', label: 'Document',     icon: FileText,    color: '#818CF8' },
+  { id: 'drive',    label: 'Upload File',  icon: Save,        color: '#34D399' },
+  { id: 'calendar', label: 'Event',        icon: CalendarPlus, color: '#60A5FA' },
 ];
 
 /**
@@ -16,12 +17,13 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
   const getInitialFields = () => {
     if (itemType === 'email') return { to: initialData.to || '', subject: initialData.subject || '', body: initialData.body || '' };
     if (itemType === 'event') return { title: initialData.title || '', date: initialData.date || '', time: initialData.time || '', duration: initialData.duration || '' };
+    if (itemType === 'document') return { title: initialData.title || '', body: initialData.body || '', destination: 'docs' };
     return { name: initialData.name || '', file: null };
   };
 
   const [fields, setFields]         = useState(getInitialFields);
   const [state, setState]           = useState('idle');   // idle|loading|success|error
-  const [activeAction, setAction]   = useState(itemType === 'email' ? 'email' : itemType === 'event' ? 'calendar' : 'drive');
+  const [activeAction, setAction]   = useState(itemType === 'email' ? 'email' : itemType === 'event' ? 'calendar' : itemType === 'document' ? 'document' : 'drive');
   const [errorMsg, setErrorMsg]     = useState('');
   
   const fileInputRef = useRef(null);
@@ -139,6 +141,36 @@ export default function WritePanel({ mode = 'compose', itemType = 'email', initi
               <WField id="wp-date"     label="Date"        value={fields.date || ''}     onChange={update('date')}     placeholder="e.g. April 11, 2026" />
               <WField id="wp-time"     label="Time"        value={fields.time || ''}     onChange={update('time')}     placeholder="e.g. 4:00 PM" />
               <WField id="wp-duration" label="Duration"    value={fields.duration || ''} onChange={update('duration')} placeholder="e.g. 1 hour" />
+            </motion.div>
+          )}
+
+          {/* Document fields */}
+          {activeAction === 'document' && (
+            <motion.div
+              key="document-fields"
+              className="write-panel__form"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.18 }}
+            >
+              <div className="write-field">
+                <label className="write-field__label">Destination</label>
+                <div style={{ position: 'relative' }}>
+                  <select 
+                    className="write-field__input"
+                    value={fields.destination || 'docs'}
+                    onChange={update('destination')}
+                    style={{ appearance: 'none', background: 'transparent' }}
+                  >
+                    <option value="docs">Google Docs</option>
+                    <option value="notion">Notion</option>
+                  </select>
+                  <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 12, color: 'var(--text-tertiary)' }} />
+                </div>
+              </div>
+              <WField id="wp-doc-title" label="Title" value={fields.title || ''} onChange={update('title')} placeholder="Document title" />
+              <WField id="wp-doc-body"  label="Content" value={fields.body || ''}  onChange={update('body')}  placeholder="Start writing..." type="textarea" rows={9} />
             </motion.div>
           )}
 
