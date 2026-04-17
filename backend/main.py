@@ -263,32 +263,53 @@ async def keyword_router(message: str, context: str) -> str:
     """Fallback keyword-based router when Gemini is unavailable."""
     msg = message.lower()
     ctx = context.lower()
-    
-    # Context-first routing
-    if ctx == "email" or "email" in msg:
+
+    # ── Context (active tab) ALWAYS wins over keyword scanning ──
+    # Only fall through to keyword matching if the context doesn't match a platform.
+
+    # 📧 Email
+    if ctx == "email" or (ctx not in ("notion", "drive", "calendar", "discord", "slack", "code", "forms") and "email" in msg):
         if any(w in msg for w in ["send", "compose", "draft", "write"]):
             return "[DRAFT_EMAIL]\nTo: \nSubject: \nBody: " + message
         result = await check_latest_emails(5)
         return f"Here is what I found in your inbox:\n{result}"
-    
-    elif ctx == "calendar" or "calendar" in msg or "event" in msg or "meeting" in msg:
+
+    # 📅 Calendar
+    elif ctx == "calendar" or (ctx not in ("notion", "drive", "email", "discord", "slack", "code", "forms") and ("calendar" in msg or "event" in msg or "meeting" in msg)):
         if any(w in msg for w in ["create", "schedule", "add", "book"]):
             return "[DRAFT_EVENT]\nTitle: \nDate: \nTime: \nDuration: 1 hour"
         result = await get_upcoming_events(5)
         return f"Here are your upcoming events:\n{result}"
-    
-    elif ctx == "drive" or "drive" in msg or "file" in msg:
+
+    # 📁 Drive
+    elif ctx == "drive" or (ctx not in ("notion", "email", "calendar", "discord", "slack", "code", "forms") and ("drive" in msg or "file" in msg)):
         result = await search_drive_files("", 5)
         return f"Here are your Drive files:\n{result}"
-    
-    elif ctx == "notion" or "notion" in msg:
-        if any(w in msg for w in ["create", "draft", "new", "write"]):
-            result = await create_notion_page("New Page", message)
+
+    # 📝 Notion — ctx match is checked first so "email" in content doesn't hijack
+    elif ctx == "notion" or (ctx not in ("email", "drive", "calendar", "discord", "slack", "code", "forms") and "notion" in msg):
+        # CREATE intent
+        if any(w in msg for w in ["create", "draft", "new", "write", "add", "titled", "title", "make"]):
+            import re
+            title_match = re.search(r'titled?\s+["\']?([^"\'\n]+?)["\']?(?:\s+with|\s+containing|$)', message, re.IGNORECASE)
+            title = title_match.group(1).strip() if title_match else "New Page"
+            result = await create_notion_page(title, message)
             return result
-        result = await search_notion_pages(message[:50])
+        # LIST ALL intent — pass empty query so Notion returns everything
+        if any(w in msg for w in ["list", "fetch", "show", "get", "all", "everything"]):
+            result = await search_notion_pages("")
+            return f"Here is what I found in Notion:\n{result}"
+        # SEARCH intent — strip filler words so we search by real keywords
+        import re
+        clean_query = re.sub(
+            r'\b(search|find|look|up|for|in|notion|my|pages?|docs?|the|a|an)\b',
+            '', msg, flags=re.IGNORECASE
+        ).strip()
+        result = await search_notion_pages(clean_query if len(clean_query) > 2 else "")
         return f"Here is what I found in Notion:\n{result}"
-    
-    elif ctx == "discord" or "discord" in msg:
+
+    # 👾 Discord
+    elif ctx == "discord" or (ctx not in ("notion", "email", "drive", "calendar", "slack", "code", "forms") and "discord" in msg):
         if any(w in msg for w in ["send", "post", "write"]):
             channel = "general"
             import re
@@ -298,8 +319,9 @@ async def keyword_router(message: str, context: str) -> str:
             return result
         result = await read_discord_channel("general", 5)
         return f"Here are the latest Discord messages:\n{result}"
-    
-    elif ctx == "slack" or "slack" in msg:
+
+    # 💬 Slack
+    elif ctx == "slack" or (ctx not in ("notion", "email", "drive", "calendar", "discord", "code", "forms") and "slack" in msg):
         if any(w in msg for w in ["send", "post", "write"]):
             channel = "general"
             import re
@@ -309,16 +331,18 @@ async def keyword_router(message: str, context: str) -> str:
             return result
         result = await read_slack_channel("general", 5)
         return f"Here are your Slack messages:\n{result}"
-    
-    elif ctx == "code" or "code" in msg or "local" in msg:
+
+    # 💻 Local Code / Files
+    elif ctx == "code" or (ctx not in ("notion", "email", "drive", "calendar", "discord", "slack", "forms") and ("code" in msg or "local" in msg)):
         result = await list_local_directory(".")
         return f"Here are your local files:\n{result}"
-    
-    elif ctx == "forms" or "form" in msg or "survey" in msg:
+
+    # 📋 Google Forms
+    elif ctx == "forms" or (ctx not in ("notion", "email", "drive", "calendar", "discord", "slack", "code") and ("form" in msg or "survey" in msg)):
         if any(w in msg for w in ["create", "build", "make"]):
             return "To create a form, please specify a title and questions."
         return "Google Forms agent ready. Ask me to create forms or read responses."
-    
+
     return f"I'm ready to help with your {context} workspace! Try asking me to read, create, or search."
 
 
@@ -375,3 +399,12 @@ async def health_check():
         "llm": "gemini" if has_gemini else "keyword-fallback",
         "tools_registered": len(TOOL_FUNCTIONS),
     }
+
+
+@app.get("/notion/page/{page_id}")
+async def get_notion_page(page_id: str):
+    """Fetch full content of a Notion page (title + recursive blocks + child pages)."""
+    result = await notion_tools.get_notion_page_content(page_id)
+    if "error" in result:
+        return {"error": result["error"]}
+    return result

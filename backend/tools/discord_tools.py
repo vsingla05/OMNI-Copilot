@@ -16,15 +16,21 @@ async def read_discord_channel(channel_id: str, limit: int = 5) -> str:
     token = get_discord_token()
     if not token:
         return "Discord Bot Token is missing. Please ask the user to connect Discord in the Integrations Hub."
-    
+
+    # Default to the user's hardcoded WhatsApp-style Discord channel if not provided or just named 'general'
+    if not channel_id or not channel_id.strip().isdigit():
+        channel_id = "1492474823329321002"
+
     headers = {"Authorization": f"Bot {token}"}
     try:
         res = requests.get(f"{DISCORD_API}/channels/{channel_id}/messages?limit={limit}",
                           headers=headers, timeout=10)
         if res.status_code == 401:
             return "Discord token is invalid or expired. Please reconnect in the Integrations Hub."
+        if res.status_code == 403:
+            return f"Discord bot lacks permission to read channel {channel_id}. Make sure the bot has been invited to the server with the correct permissions."
         if res.status_code != 200:
-            return f"Discord API error (HTTP {res.status_code})."
+            return f"Discord API error (HTTP {res.status_code}): {res.text[:200]}"
             
         messages = res.json()
         if not messages:
@@ -32,9 +38,17 @@ async def read_discord_channel(channel_id: str, limit: int = 5) -> str:
             
         lines = []
         for msg in messages:
+            content = msg.get("content", "").strip()
+            # Skip system messages like "Bot joined the server" which have empty content
+            if not content:
+                continue
+                
             author = msg.get("author", {}).get("username", "Unknown")
-            content = msg.get("content", "(no text)")[:120]
-            lines.append(f"ID: {msg['id']} | Discord: Server | Channel: {channel_id} | Author: {author} | Msg: {content}")
+            lines.append(f"ID: {msg['id']} | Discord: Server | Channel: {channel_id} | Author: {author} | Msg: {content[:120]}")
+            
+        if not lines:
+            return "No text messages found in this channel yet. Try sending one!"
+            
         return "\n".join(lines)
     except requests.exceptions.Timeout:
         return "Discord API request timed out."
@@ -49,7 +63,11 @@ async def send_discord_message(channel_id: str, message: str) -> str:
     token = get_discord_token()
     if not token:
         return "Discord Bot Token is missing. Please ask the user to connect Discord in the Integrations Hub."
-    
+
+    # Default to the user's hardcoded WhatsApp-style Discord channel if not provided or just named 'general'
+    if not channel_id or not channel_id.strip().isdigit():
+        channel_id = "1492474823329321002"
+
     headers = {
         "Authorization": f"Bot {token}",
         "Content-Type": "application/json",
@@ -59,6 +77,6 @@ async def send_discord_message(channel_id: str, message: str) -> str:
                            headers=headers, json={"content": message}, timeout=10)
         if res.status_code in (200, 201):
             return f"Message sent to Discord channel {channel_id} successfully!"
-        return f"Discord send failed (HTTP {res.status_code})."
+        return f"Discord send failed (HTTP {res.status_code}): {res.text[:200]}"
     except Exception as e:
         return f"Discord send failed: {str(e)}"

@@ -1,37 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { EmailCard, DriveCard, CalendarCard } from './ActionCards';
 import { EmailDraftEditor, CalendarDraftEditor } from './DraftEditor';
 import DiscordFeedCard from './DiscordFeedCard';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, ExternalLink, Loader } from 'lucide-react';
 import './ActionRenderer.css';
 
 /**
  * ActionRenderer — The Brain (v2).
- *
- * READ patterns (single-line):
- *   "From: <sender> | Subject: <subject>"  → EmailCard
- *   "File: <filename>"                      → DriveCard
- *   "Event: <name> at <dateStr>"            → CalendarCard
- *
- * WRITE / DRAFT patterns (multi-line blocks):
- *   [DRAFT_EMAIL]
- *   To: recipient@example.com
- *   Subject: Meeting Tomorrow
- *   Body: Hi there…
- *
- *   [DRAFT_EVENT]
- *   Title: Team Standup
- *   Date: April 15, 2025
- *   Time: 10:00 AM
- *   Duration: 30 minutes
- *
- * SUCCESS patterns (inline, any line):
- *   "…sent successfully…"   → inline success badge
- *   "…created successfully…" → inline success badge
- *
- * Props:
- *   text            {string}  — raw AI response
- *   onConfirmAction {fn}      — (message: string) => Promise<string>
  */
 export default function ActionRenderer({ text, onConfirmAction }) {
   if (!text) return null;
@@ -43,7 +19,6 @@ export default function ActionRenderer({ text, onConfirmAction }) {
   if (emailDraft) {
     return (
       <div className="action-renderer action-renderer--cards">
-        {/* Preamble lines before the block */}
         {emailDraft.preamble && (
           <p className="action-renderer__text">{emailDraft.preamble}</p>
         )}
@@ -80,27 +55,25 @@ export default function ActionRenderer({ text, onConfirmAction }) {
   const lines = text.split('\n').filter(Boolean);
 
   const nodes = lines.map((line, i) => {
-    // Success inline badge
     const lower = line.toLowerCase();
+
+    // Success inline badge
     if (lower.includes('sent successfully') || lower.includes('created successfully') || lower.includes('done successfully')) {
       return <SuccessBadge key={i} message={line} />;
     }
 
-    // Extract ID if present so it doesn't break normal regexs
-    const idMatch = line.match(/^ID:\s*([^\s\|]+)\s*\|\s*(.*)$/i);
-    let content = idMatch ? idMatch[2] : line;
+    // Extract ID prefix: "ID: <id> | <rest>"
+    const idMatch = line.match(/^ID:\s*([^\s|]+)\s*\|\s*(.*)$/i);
+    const content = idMatch ? idMatch[2] : line;
+    const rowId   = idMatch ? idMatch[1] : null;
 
     // Email READ card
     const emailMatch = content.match(/^From:\s*(.+?)\s*\|\s*Subject:\s*(.+)$/i);
-    if (emailMatch) {
-      return <EmailCard key={i} from={emailMatch[1]} subject={emailMatch[2]} />;
-    }
+    if (emailMatch) return <EmailCard key={i} from={emailMatch[1]} subject={emailMatch[2]} />;
 
     // Drive card
     const fileMatch = content.match(/^File:\s*(.+)$/i);
-    if (fileMatch) {
-      return <DriveCard key={i} filename={fileMatch[1]} />;
-    }
+    if (fileMatch) return <DriveCard key={i} filename={fileMatch[1]} />;
 
     // Calendar READ card
     const eventMatch = content.match(/^Event:\s*(.+?)\s*\|\s*At:\s*(.+)$/i);
@@ -109,7 +82,7 @@ export default function ActionRenderer({ text, onConfirmAction }) {
       const match = eventMatch || eventMatchLegacy;
       return <CalendarCard key={i} eventName={match[1]} dateStr={match[2]} />;
     }
-    
+
     // Discord Feed Card
     const discordMatch = content.match(/^Discord:\s*(.+?)\s*\|\s*Channel:\s*(.+?)\s*\|\s*Author:\s*(.+?)\s*\|\s*Msg:\s*(.+)$/i);
     if (discordMatch) {
@@ -122,15 +95,31 @@ export default function ActionRenderer({ text, onConfirmAction }) {
       return <MiniFeedCard key={i} platform="Slack" color="#E01E5A" author={slackMatch[1]} message={slackMatch[2]} />;
     }
 
-    // Notion Page Card
-    const notionMatch = content.match(/^Notion:\s*(.+?)\s*\|\s*Title:\s*(.+)$/i);
-    if (notionMatch) {
-      return <MiniIconCard key={i} platform="Notion" color="#1a1a1a" title={notionMatch[2]} icon="📄" />;
+    // ── Notion Page Card (new format from backend) ──
+    // e.g: "📄 FireReach | ID: 3454a75b-... | 🔗 https://notion.so/..."
+    const notionNewMatch = line.match(/^(📄|🗄️)\s+(.+?)\s*\|\s*ID:\s*([\w-]+)(?:\s*\|\s*🔗\s*(https?:\/\/\S+))?/i);
+    if (notionNewMatch) {
+      const isDb  = notionNewMatch[1] === '🗄️';
+      const title = notionNewMatch[2].trim();
+      const pid   = notionNewMatch[3].replace(/-/g, '');
+      const url   = notionNewMatch[4] || null;
+      return <NotionPageCard key={i} title={title} pageId={pid} url={url} isDatabase={isDb} />;
     }
 
-    // Local Files (Code Explorer)
+    // Notion summary line "Found N item(s)…" — render as plain text
+    if (lower.startsWith('found ') && lower.includes('notion')) {
+      return <p key={i} className="action-renderer__text action-renderer__notion-summary">{line}</p>;
+    }
+
+    // Notion Page Card (legacy format)
+    const notionOldMatch = content.match(/^Notion:\s*(.+?)\s*\|\s*Title:\s*(.+)$/i);
+    if (notionOldMatch) {
+      return <NotionPageCard key={i} title={notionOldMatch[2]} pageId={rowId} url={null} isDatabase={false} />;
+    }
+
+    // Local Files (Code Explorer) — must come after notion check to avoid matching 📄 lines
     const codeMatch = content.match(/^(📁|📄)\s*(.+?)\s*(?:\((.*?)\))?$/);
-    if (codeMatch && !line.includes('File:')) {
+    if (codeMatch && !line.includes('File:') && !notionNewMatch) {
       return <MiniIconCard key={i} platform="Code" color="#A78BFA" title={codeMatch[2]} subtitle={codeMatch[3] || 'System Dir'} icon={codeMatch[1]} />;
     }
 
@@ -139,7 +128,7 @@ export default function ActionRenderer({ text, onConfirmAction }) {
     if (formMatch) {
       return <MiniFeedCard key={i} platform="Forms" color="#FBBF24" author="Respondent" message={formMatch[1]} />;
     }
-    
+
     // Google Forms Link
     const formLinkMatch = content.match(/^Form URL:\s*(https:\/\/.*)$/i);
     if (formLinkMatch) {
@@ -151,12 +140,10 @@ export default function ActionRenderer({ text, onConfirmAction }) {
     }
 
     // Plain text
-    return (
-      <p key={i} className="action-renderer__text">{line}</p>
-    );
+    return <p key={i} className="action-renderer__text">{line}</p>;
   });
 
-  const hasCards = nodes.some(n => n.type !== 'p');
+  const hasCards = nodes.some(n => n?.type !== 'p');
 
   return (
     <div className={`action-renderer ${hasCards ? 'action-renderer--cards' : ''}`}>
@@ -165,7 +152,125 @@ export default function ActionRenderer({ text, onConfirmAction }) {
   );
 }
 
-/* ─── Shared UI Cards for new platforms ─────────────────── */
+/* ─── Notion Page Card — clickable → opens full-content modal ── */
+function NotionPageCard({ title, pageId, url, isDatabase }) {
+  const [open, setOpen]         = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [pageData, setPageData] = useState(null);
+  const [error, setError]       = useState(null);
+
+  const handleOpen = async () => {
+    setOpen(true);
+    if (pageData || !pageId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res  = await fetch(`http://localhost:8000/notion/page/${pageId}`);
+      const data = await res.json();
+      if (data.error) setError(data.error);
+      else setPageData(data);
+    } catch {
+      setError('Failed to connect to backend. Is the server running?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Card row */}
+      <motion.div
+        className={`notion-page-card ${isDatabase ? 'notion-page-card--db' : ''}`}
+        onClick={handleOpen}
+        whileHover={{ scale: 1.015, x: 2 }}
+        whileTap={{ scale: 0.97 }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => e.key === 'Enter' && handleOpen()}
+        aria-label={`Open Notion page: ${title}`}
+      >
+        <div className="notion-page-card__icon">{isDatabase ? '🗄️' : '📄'}</div>
+        <div className="notion-page-card__body">
+          <p className="notion-page-card__title">{title}</p>
+          <p className="notion-page-card__hint">Click to view full content</p>
+        </div>
+        {url && (
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="notion-page-card__ext"
+            onClick={e => e.stopPropagation()}
+            title="Open in Notion"
+          >
+            <ExternalLink size={13} />
+          </a>
+        )}
+      </motion.div>
+
+      {/* Full-content modal */}
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.div
+              className="notion-modal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              className="notion-modal"
+              initial={{ opacity: 0, scale: 0.93, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.93, y: 20 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+              role="dialog"
+              aria-modal="true"
+            >
+              {/* Header */}
+              <div className="notion-modal__header">
+                <div className="notion-modal__header-left">
+                  <span className="notion-modal__icon">{isDatabase ? '🗄️' : '📄'}</span>
+                  <span className="notion-modal__title">{pageData?.title || title}</span>
+                </div>
+                <div className="notion-modal__header-right">
+                  {url && (
+                    <a href={url} target="_blank" rel="noreferrer" className="notion-modal__open-btn">
+                      Open in Notion <ExternalLink size={12} />
+                    </a>
+                  )}
+                  <button className="notion-modal__close" onClick={() => setOpen(false)} aria-label="Close">
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="notion-modal__body">
+                {loading && (
+                  <div className="notion-modal__loading">
+                    <Loader size={20} className="notion-modal__spinner" />
+                    <span>Loading page content…</span>
+                  </div>
+                )}
+                {error && <p className="notion-modal__error">⚠️ {error}</p>}
+                {!loading && !error && !pageId && (
+                  <p className="notion-modal__no-content">No page ID — cannot fetch content.</p>
+                )}
+                {pageData && !loading && (
+                  <pre className="notion-modal__content">{pageData.content}</pre>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+/* ─── Shared UI Cards ─────────────────── */
 function MiniFeedCard({ platform, color, author, message }) {
   return (
     <div className="mini-feed-card" style={{ '--pf-color': color }}>
@@ -190,7 +295,6 @@ function MiniIconCard({ platform, color, title, subtitle, icon }) {
   );
 }
 
-/* ─── Inline success badge ─────────────────── */
 function SuccessBadge({ message }) {
   return (
     <motion.div
@@ -206,49 +310,37 @@ function SuccessBadge({ message }) {
 }
 
 /* ─── Draft block parsers ───────────────────── */
-
 function parseDraftEmail(text) {
   if (!text.includes('[DRAFT_EMAIL]')) return null;
-
   const after    = text.slice(text.indexOf('[DRAFT_EMAIL]'));
   const preamble = text.slice(0, text.indexOf('[DRAFT_EMAIL]')).trim();
   const lines    = after.split('\n').filter(Boolean);
-
-  let to = '', subject = '', body = '';
-  let bodyLines = [];
-  let inBody = false;
-
+  let to = '', subject = '', body = '', bodyLines = [], inBody = false;
   for (const line of lines) {
     if (line.startsWith('[DRAFT_EMAIL]')) continue;
     if (!inBody) {
       const toM      = line.match(/^To:\s*(.+)$/i);
       const subjectM = line.match(/^Subject:\s*(.+)$/i);
       const bodyM    = line.match(/^Body:\s*(.*)$/i);
-      if (toM)      { to = toM[1].trim();      continue; }
+      if (toM)      { to      = toM[1].trim();      continue; }
       if (subjectM) { subject = subjectM[1].trim(); continue; }
-      if (bodyM)    { inBody = true; bodyLines.push(bodyM[1]); continue; }
+      if (bodyM)    { inBody  = true; bodyLines.push(bodyM[1]); continue; }
     } else {
-      // Stop at next block marker
       if (line.startsWith('[')) break;
       bodyLines.push(line);
     }
   }
-
   body = bodyLines.join('\n').trim();
-
   if (!to && !subject) return null;
   return { preamble, to, subject, body };
 }
 
 function parseDraftEvent(text) {
   if (!text.includes('[DRAFT_EVENT]')) return null;
-
   const after    = text.slice(text.indexOf('[DRAFT_EVENT]'));
   const preamble = text.slice(0, text.indexOf('[DRAFT_EVENT]')).trim();
   const lines    = after.split('\n').filter(Boolean);
-
   let title = '', date = '', time = '', duration = '1 hour';
-
   for (const line of lines) {
     if (line.startsWith('[DRAFT_EVENT]')) continue;
     if (line.startsWith('[')) break;
@@ -261,7 +353,6 @@ function parseDraftEvent(text) {
     if (timeM)     time     = timeM[1].trim();
     if (durationM) duration = durationM[1].trim();
   }
-
   if (!title) return null;
   return { preamble, title, date, time, duration };
 }
