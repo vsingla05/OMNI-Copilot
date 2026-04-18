@@ -8,7 +8,7 @@ from core.auth import get_discord_token
 DISCORD_API = "https://discord.com/api/v10"
 
 
-async def read_discord_channel(channel_id: str, limit: int = 5) -> str:
+async def read_discord_channel(channel_id: str = "", limit: int = 5) -> str:
     """Reads the most recent messages from a Discord channel.
     Use this when the user asks to check, read, or show their Discord messages.
     Args: channel_id (the Discord channel ID to fetch messages from), limit (max messages).
@@ -56,7 +56,7 @@ async def read_discord_channel(channel_id: str, limit: int = 5) -> str:
         return f"Discord read failed: {str(e)}"
 
 
-async def send_discord_message(channel_id: str, message: str) -> str:
+async def send_discord_message(channel_id: str = "", message: str = "") -> str:
     """Sends a message to a specific Discord channel.
     Use this when the user asks to send, post, or write a message in Discord.
     Args: channel_id (the Discord channel ID), message (the text to send)."""

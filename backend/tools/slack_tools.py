@@ -19,10 +19,8 @@ def _resolve_slack_target(token: str, target: str) -> str:
     if re.match(r'^[CUDGW][A-Z0-9]+$', cn.upper()):
         return cn.upper()
 
-    # Hardcoded overrides for common channels
+    # Hardcoded overrides for common channels (removed hardcoded ID to allow dynamic resolution)
     cn_lower = cn.lower().lstrip('#@')
-    if cn_lower == "general":
-        return "C0ASDNTD5D2"
 
     headers = {"Authorization": f"Bearer {token}"}
     

@@ -367,4 +367,52 @@
   margin: 0;
 }
 
+/* ══════════════════════════════════════
+   Clarification Request Card
+══════════════════════════════════════ */
+.clarification-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(245,158,11,0.05));
+  border: 1px solid rgba(251,191,36,0.35);
+  border-left: 3px solid #F59E0B;
+  border-radius: var(--radius-sm);
+  max-width: 520px;
+  box-shadow: 0 0 16px rgba(251,191,36,0.1);
+}
+
+.clarification-card__icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(251,191,36,0.15);
+  color: #D97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clarification-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clarification-card__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #D97706;
+}
+
+.clarification-card__question {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  font-weight: 500;
+}
 

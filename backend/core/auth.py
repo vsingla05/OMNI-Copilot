@@ -96,3 +96,9 @@ def get_slack_token() -> str:
 
 def get_gemini_key() -> str:
     return os.environ.get('GEMINI_API_KEY', '').strip()
+
+def get_groq_key() -> str:
+    return os.environ.get('GROQ_API_KEY', '').strip()
+
+def get_anthropic_key() -> str:
+    return os.environ.get('ANTHROPIC_API_KEY', '').strip()

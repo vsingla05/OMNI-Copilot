@@ -8,14 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import './GlobalSidebar.css';
 
 const NAV_ITEMS = [
-  { id: 'email',    label: 'Email',    icon: Mail,          dot: '#F87171' },
-  { id: 'calendar', label: 'Calendar', icon: Calendar,      dot: '#60A5FA' },
-  { id: 'drive',    label: 'Drive',    icon: HardDrive,     dot: '#34D399' },
-  { id: 'notion',   label: 'Notion',   icon: FileText,      dot: '#000000' },
-  { id: 'discord',  label: 'Discord',  icon: MessageSquare, dot: '#5865F2' },
-  { id: 'slack',    label: 'Slack',    icon: Hash,          dot: '#E01E5A' },
-  { id: 'code',     label: 'Code',     icon: Code,          dot: '#A78BFA' },
-  { id: 'forms',    label: 'Forms',    icon: ClipboardList, dot: '#FBBF24' },
+  { id: 'omni', label: 'Omni Chat', icon: MessageSquare, dot: '#818CF8' },
 ];
 
 /**

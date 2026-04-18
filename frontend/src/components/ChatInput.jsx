@@ -50,12 +50,17 @@ export default function ChatInput({ value, onChange, onSend, isLoading, context 
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Read as base64 for multimodal
+    // Universal Binary Reader for ANY file
     const reader = new FileReader();
     reader.onload = () => {
-      const base64 = reader.result.split(',')[1]; // strip data:... prefix
-      setAttachedImage({ name: file.name, base64, preview: reader.result });
-      if (onImageAttach) onImageAttach(base64);
+      const b64 = typeof reader.result === 'string' ? reader.result.split(',')[1] : '';
+      const payload = `${file.name}|||${file.type || 'application/octet-stream'}|||${b64}`;
+      const previewUrl = file.type.startsWith('image/') 
+        ? reader.result 
+        : 'https://cdn-icons-png.flaticon.com/512/2965/2965335.png';
+      
+      setAttachedImage({ name: file.name, base64: payload, preview: previewUrl });
+      if (onImageAttach) onImageAttach(payload);
     };
     reader.readAsDataURL(file);
     // Reset input so the same file can be re-selected

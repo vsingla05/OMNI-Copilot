@@ -3,7 +3,7 @@ import { EmailCard, DriveCard, CalendarCard } from './ActionCards';
 import { EmailDraftEditor, CalendarDraftEditor } from './DraftEditor';
 import DiscordFeedCard from './DiscordFeedCard';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, Loader } from 'lucide-react';
+import { X, ExternalLink, Loader, HelpCircle } from 'lucide-react';
 import './ActionRenderer.css';
 
 /**
@@ -11,6 +11,17 @@ import './ActionRenderer.css';
  */
 export default function ActionRenderer({ text, onConfirmAction }) {
   if (!text) return null;
+
+  // ── 0. Clarification request from the LLM ──
+  const clarificationMatch = text.match(/\[CLARIFICATION_NEEDED\]\s*([\s\S]*)/);
+  if (clarificationMatch) {
+    const question = clarificationMatch[1].trim();
+    return (
+      <div className="action-renderer">
+        <ClarificationCard question={question} />
+      </div>
+    );
+  }
 
   // ── 1. Check for multi-line draft blocks first ──
   const emailDraft    = parseDraftEmail(text);
@@ -267,6 +278,28 @@ function NotionPageCard({ title, pageId, url, isDatabase }) {
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+/* ─── Clarification Request Card ──────────── */
+function ClarificationCard({ question }) {
+  return (
+    <motion.div
+      className="clarification-card"
+      initial={{ opacity: 0, y: 8, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="clarification-card__icon">
+        <HelpCircle size={16} strokeWidth={2} />
+      </div>
+      <div className="clarification-card__body">
+        <p className="clarification-card__label">Clarification needed</p>
+        <p className="clarification-card__question">{question}</p>
+      </div>
+    </motion.div>
   );
 }
 

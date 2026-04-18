@@ -6,6 +6,8 @@ context-aware routing, and multimodal chat endpoint.
 import os
 import base64
 import traceback
+import inspect
+import json
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,7 +15,7 @@ from typing import Optional
 from mcp.server.fastmcp import FastMCP
 
 # ── Load environment before anything else ──
-from core.auth import load_dotenv, update_env_key, get_gemini_key
+from core.auth import load_dotenv, update_env_key, get_gemini_key, get_groq_key, get_anthropic_key
 load_dotenv()
 
 # ── Import all tool modules ──
@@ -23,6 +25,9 @@ from tools import local_fs_tools, forms_tools
 
 # ── Import old routers for backward-compatible REST endpoints ──
 from routers import email, drive, calendar
+
+# Global state for raw binary file uploads
+CURRENT_ATTACHMENT = {}
 
 # ══════════════════════════════════════════════════
 #  FastAPI + FastMCP Setup
@@ -134,6 +139,14 @@ async def list_local_directory(dirpath: str = ".") -> str:
     """Lists files and subdirectories in a local directory."""
     return await local_fs_tools.list_local_directory(dirpath)
 
+@mcp_server.tool()
+async def summarize_file(filepath: str, file_type: str = "auto") -> str:
+    """Ingests any file (code, text, JSON, CSV, Markdown) and returns a structured
+    summary and content preview for the LLM brain to use as context.
+    AUTOMATICALLY route through this tool first when a user uploads or references
+    a file and asks about it, before routing to any other tools."""
+    return await local_fs_tools.summarize_file(filepath, file_type)
+
 # 📋 Google Forms
 @mcp_server.tool()
 async def create_google_form(title: str, questions: str) -> str:
@@ -164,6 +177,7 @@ TOOL_FUNCTIONS = {
     "trash_email": trash_email,
     "search_drive_files": search_drive_files,
     "upload_text_to_drive": upload_text_to_drive,
+    "upload_attached_file_to_drive": drive_tools.upload_attached_file_to_drive,
     "delete_drive_file": delete_drive_file,
     "get_upcoming_events": get_upcoming_events,
     "create_calendar_event": create_calendar_event,
@@ -176,6 +190,7 @@ TOOL_FUNCTIONS = {
     "send_slack_message": send_slack_message,
     "read_local_file": read_local_file,
     "list_local_directory": list_local_directory,
+    "summarize_file": summarize_file,
     "create_google_form": create_google_form,
     "read_google_form_responses": read_google_form_responses,
 }
@@ -183,19 +198,302 @@ TOOL_FUNCTIONS = {
 
 def build_system_prompt(context: str) -> str:
     """Generates a dynamic system prompt incorporating the user's active tab context."""
-    return f"""You are Omni Copilot — an elite AI assistant that seamlessly manages 8 platforms: Gmail, Google Calendar, Google Drive, Notion, Discord, Slack, local code files, and Google Forms.
+    return f"""You are Omni Copilot — an advanced autonomous integration agent. Your primary
+function is to analyse the user's natural language input, determine their core intent, and
+map that intent to the exact tool or sequence of tools required to execute the request.
 
-The user is currently on the **{context}** tab. Prioritize this context when interpreting ambiguous requests, but intelligently use any tool needed to fulfill their request.
+The user is currently on the **{context}** tab. Prioritise this context when interpreting
+ambiguous requests, but intelligently invoke any tool needed to fulfil the request.
 
-RESPONSE FORMAT RULES:
-- For email results, format each as: ID: <id> | From: <sender> | Subject: <subject>
-- For drive files, format each as: ID: <id> | File: <filename>
-- For calendar events, format each as: ID: <id> | Event: <title> | At: <datetime>
-- For notion pages, format each as: ID: <id> | Notion: workspace | Title: <title>
-- For discord messages, format each as: ID: <id> | Discord: Server | Channel: <ch> | Author: <name> | Msg: <text>
-- For success confirmations, include the word "successfully" so the UI can show a toast.
-- Be concise, helpful, and don't explain your tools — just use them and report results.
-- If a platform's API key is missing, tell the user to connect it in the Integrations Hub (Settings gear in the sidebar)."""
+═══════════════════════════════════
+ AVAILABLE TOOL REGISTRY (20 tools)
+═══════════════════════════════════
+📧 Gmail
+  • check_latest_emails(max_results)           – Read recent inbox
+  • send_email(to, subject, body)               – Compose & send email
+  • trash_email(message_id)                     – Move email to trash
+
+📁 Google Drive
+  • search_drive_files(query, limit)            – List / search files
+  • upload_text_to_drive(filename, content)     – Create a new Drive file
+  • upload_attached_file_to_drive()             – Upload the user's attached binary file
+  • delete_drive_file(file_id)                  – Delete a file by ID
+
+📅 Google Calendar
+  • get_upcoming_events(max_results)            – Fetch upcoming events
+  • create_calendar_event(title,date,time,duration) – Schedule event
+  • delete_calendar_event(event_id)             – Cancel event by ID
+
+📝 Notion
+  • search_notion_pages(query)                  – Search workspace pages
+  • create_notion_page(title, content)          – Create a new page
+
+👾 Discord
+  • read_discord_channel(channel_id, limit)     – Read channel messages
+  • send_discord_message(channel_id, message)   – Post a message
+
+💬 Slack
+  • read_slack_channel(channel_id, limit)       – Fetch channel history
+  • send_slack_message(channel_id, message)     – Post a message
+
+💻 Local Files & Code
+  • read_local_file(filepath)                   – Read a local file
+  • list_local_directory(dirpath)               – Browse local folder
+  • summarize_file(filepath, file_type)         – Summarise any file
+
+📋 Google Forms
+  • create_google_form(title, questions)        – Build a new form
+  • read_google_form_responses(form_id)         – Read form submissions
+
+═══════════════════════════════════
+ OPERATIONAL RULES
+═══════════════════════════════════
+1. INTENT FIRST — Identify the user's explicit intent before calling any tool.
+
+2. CHAIN TOOLS — For multi-step requests execute tools sequentially:
+   e.g. "Summarise this file and send it to Slack" → summarize_file → send_slack_message
+   e.g. "Read the Notion page about X and email it to the team" →
+        search_notion_pages → <read content> → send_email
+
+3. STRICT PARAMETER EXTRACTION — Extract parameters exactly as the user states.
+   Never hallucinate email addresses, channel IDs, file paths, or event IDs.
+
+4. CLARIFY WHEN REQUIRED — If a required parameter is missing, do NOT call the tool.
+   Instead, ask the user for the specific missing information. Prefix your question with
+   [CLARIFICATION_NEEDED] so the UI can render it as a distinct card. Example:
+   [CLARIFICATION_NEEDED] What is the recipient's email address for this message?
+
+5. IMPLICIT FILE SUMMARISATION — If the user references or uploads a file and asks a
+   question about it, automatically call summarize_file first to gain context before
+   answering or routing to other tools.
+
+6. MISSING API KEYS — If a platform token/key is absent, respond:
+   "⚠️ <Platform> is not connected. Please add your API key in the Integrations Hub
+   (Settings ⚙ in the sidebar)."
+
+═══════════════════════════════════
+ RESPONSE FORMAT RULES
+═══════════════════════════════════
+• Emails     → ID: <id> | From: <sender> | Subject: <subject>
+• Drive files → ID: <id> | File: <filename>
+• Calendar   → ID: <id> | Event: <title> | At: <datetime>
+• Notion     → 📄 <title> | ID: <uuid> | 🔗 <url>
+• Discord    → ID: <id> | Discord: Server | Channel: <ch> | Author: <name> | Msg: <text>
+• Slack      → Slack | User: <user> | Msg: <text>
+• Success    → always include the word "successfully" so the UI can show a toast
+• Errors     → prefix with ⚠️
+• Be concise. Do not narrate which tool you are calling — just call it and report results."""
+
+
+def build_groq_tools():
+    """Builds OpenAI-compatible tool schemas for Groq API."""
+    tools = []
+    for name, fn in TOOL_FUNCTIONS.items():
+        sig = inspect.signature(fn)
+        properties = {}
+        required = []
+        for param_name, param in sig.parameters.items():
+            param_type = "string"
+            properties[param_name] = {"type": param_type, "description": f"The {param_name}"}
+            if param.default == inspect.Parameter.empty:
+                required.append(param_name)
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": fn.__doc__.split('\n')[0] if fn.__doc__ else "A tool function.",
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required
+                }
+            }
+        })
+    return tools
+
+
+async def call_groq(message: str, context: str, image_data: str = None) -> str:
+    """Calls the Groq API with function calling enabled."""
+    api_key = get_groq_key()
+    if not api_key:
+        return await keyword_router(message, context)
+        
+    try:
+        from groq import Groq
+        client = Groq(api_key=api_key)
+        sys_prompt_groq = f"""You are Omni Copilot — an integration agent.
+You are currently responding in the {context} tab.
+
+Rules for Tools:
+1. Auto-format dates/times (e.g. 'April 20, 2026', '3:00 PM') internally before calling tools. Do not ask the user for formatting.
+2. Do not invent parameters. If the user asks to upload or create a file but does NOT provide the filename or the text content, you MUST stop and ask them using [CLARIFICATION_NEEDED].
+3. CRITICAL: NEVER REFORMAT the literal string lines returned by tools! If a tool outputs "📄 MyPage | ID: 123" or "ID: 999 | Event: Team Sync", you MUST paste that EXACT string unaltered in your final text. DO NOT change the punctuation strings, DO NOT convert them into bullet points, and DO NOT change their prefixes. The system UI relies on the exact syntax to render cards.
+4. If a file upload, deletion, or creation succeeds, you MUST include the exact phrase "done successfully" anywhere in your text so the UI badge pops up."""
+        
+        messages = [
+            {"role": "system", "content": sys_prompt_groq},
+            {"role": "user", "content": message}
+        ]
+        
+        tools = build_groq_tools()
+        
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            tools=tools,
+            temperature=0.7,
+        )
+        
+        msg_obj = response.choices[0].message
+        if getattr(msg_obj, "tool_calls", None):
+            messages.append({
+                "role": "assistant",
+                "content": msg_obj.content,
+                "tool_calls": [
+                    {
+                        "id": t.id,
+                        "type": "function",
+                        "function": {"name": t.function.name, "arguments": t.function.arguments}
+                    } for t in msg_obj.tool_calls
+                ]
+            })
+            
+            for tool_call in msg_obj.tool_calls:
+                fn_name = tool_call.function.name
+                fn_to_call = TOOL_FUNCTIONS.get(fn_name)
+                if fn_to_call:
+                    args_str = tool_call.function.arguments
+                    fn_args = json.loads(args_str) if args_str and args_str.strip() not in ("null", "") else {}
+                    if not isinstance(fn_args, dict):
+                        fn_args = {}
+                        
+                    # Safely typecast strings back to ints where required
+                    sig = inspect.signature(fn_to_call)
+                    for k, v in fn_args.items():
+                        if k in sig.parameters and sig.parameters[k].annotation == int:
+                            try: fn_args[k] = int(v)
+                            except: pass
+                            
+                    fn_res = await fn_to_call(**fn_args)
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": fn_name,
+                        "content": str(fn_res)
+                    })
+            
+            final_res = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                temperature=0.7,
+            )
+            return final_res.choices[0].message.content
+            
+        return msg_obj.content if msg_obj.content else "Request completed successfully."
+        
+    except Exception as e:
+        trace = traceback.format_exc()
+        print(f"[Groq Error] {trace}")
+        return f"⚠️ Groq Error: {str(e)}"
+
+
+def build_anthropic_tools():
+    """Builds Anthropic-compatible tool schemas."""
+    tools = []
+    for name, fn in TOOL_FUNCTIONS.items():
+        sig = inspect.signature(fn)
+        properties = {}
+        required = []
+        for param_name, param in sig.parameters.items():
+            param_type = "string"
+            properties[param_name] = {"type": param_type, "description": f"The {param_name}"}
+            if param.default == inspect.Parameter.empty:
+                required.append(param_name)
+        tools.append({
+            "name": name,
+            "description": fn.__doc__.split('\n')[0] if fn.__doc__ else "A tool function.",
+            "input_schema": {
+                "type": "object",
+                "properties": properties,
+                "required": required
+            }
+        })
+    return tools
+
+
+async def call_anthropic(message: str, context: str, image_data: str = None) -> str:
+    """Calls the Anthropic API (Claude 3.7 Sonnet) with function calling enabled."""
+    api_key = get_anthropic_key()
+    if not api_key:
+        return await keyword_router(message, context)
+        
+    try:
+        from anthropic import Anthropic
+        client = Anthropic(api_key=api_key)
+        
+        sys_prompt_anthropic = f"""You are Omni Copilot — an advanced autonomous integration agent. 
+The user is currently on the **{context}** tab.
+CRITICAL: You MUST use the provided tools to execute actions. Do NOT output python function signatures as plain text.
+
+OPERATIONAL RULES:
+1. Always use tools to fulfil requests.
+2. If missing a required parameter defined in the tool schema, DO NOT call the tool. Ask the user with [CLARIFICATION_NEEDED] prefix.
+3. NEVER ask for or invent parameters that are not explicitly defined in the provided tool schema.
+4. Emails response format: ID: <id> | From: <sender> | Subject: <subject>
+5. Calendar response format: ID: <id> | Event: <title> | At: <datetime>
+6. Always include "successfully" in your text if a tool succeeds so the UI shows a toast.
+"""
+        messages = [{"role": "user", "content": message}]
+        tools = build_anthropic_tools()
+        
+        response = client.messages.create(
+            model="claude-3-7-sonnet-latest",
+            max_tokens=2048,
+            system=sys_prompt_anthropic,
+            messages=messages,
+            tools=tools,
+        )
+        
+        if response.stop_reason == "tool_use":
+            messages.append({"role": "assistant", "content": response.content})
+            
+            tool_results = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    fn_name = block.name
+                    fn_args = block.input
+                    fn_to_call = TOOL_FUNCTIONS.get(fn_name)
+                    if fn_to_call:
+                        # Safely typecast strings back to ints where required
+                        sig = inspect.signature(fn_to_call)
+                        for k, v in fn_args.items():
+                            if k in sig.parameters and sig.parameters[k].annotation == int:
+                                try: fn_args[k] = int(v)
+                                except: pass
+                                
+                        fn_res = await fn_to_call(**fn_args)
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": str(fn_res),
+                        })
+            
+            messages.append({"role": "user", "content": tool_results})
+            final_response = client.messages.create(
+                model="claude-3-7-sonnet-latest",
+                max_tokens=2048,
+                system=sys_prompt_anthropic,
+                messages=messages,
+                tools=tools,
+            )
+            return "".join([b.text for b in final_response.content if b.type == "text"])
+            
+        return "".join([b.text for b in response.content if b.type == "text"])
+        
+    except Exception as e:
+        trace = traceback.format_exc()
+        print(f"[Anthropic Error] {trace}")
+        return f"⚠️ Anthropic Error: {str(e)}"
 
 
 async def call_gemini(message: str, context: str, image_data: str = None) -> str:
@@ -228,35 +526,38 @@ async def call_gemini(message: str, context: str, image_data: str = None) -> str
                 pass
         contents.append(message)
         
-        # Use the Gemini API with automatic function calling
+        # Use the Gemini Chat API with automatic function calling
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
             tools=tool_configs,
+            temperature=0.7,
         )
         
-        response = client.models.generate_content(
+        chat = client.chats.create(
             model="gemini-2.0-flash",
-            contents=contents,
             config=config,
         )
+        
+        # Send message with any embedded media parts; chat automatically handles tool execution
+        response = chat.send_message(contents)
         
         # Extract text from the response
         if response and response.text:
             return response.text
-        
-        return "I processed your request but got an empty response. Please try again."
-        
-    except ImportError:
-        return await keyword_router(message, context)
+
+        return "I successfully completed your request using my tools! (No explicit text response returned)"
     except Exception as e:
         error_msg = str(e)
+        print(f"[Gemini Exception Raw Message]: {error_msg}")
         if "quota" in error_msg.lower() or "rate" in error_msg.lower():
             return "⚠️ Gemini rate limit reached. Please wait a moment and try again."
         if "api key" in error_msg.lower() or "invalid" in error_msg.lower():
             return "⚠️ Gemini API key is invalid. Please check your GEMINI_API_KEY in the .env file."
-        print(f"[Gemini Error] {traceback.format_exc()}")
-        # Fallback to keyword router
-        return await keyword_router(message, context)
+        
+        # We temporarily return the exact traceback so we can see why `client.chats.create` is failing!
+        trace = traceback.format_exc()
+        print(f"[Gemini Error] {trace}")
+        return f"CRITICAL AI CRASH:\n{trace}"
 
 
 async def keyword_router(message: str, context: str) -> str:
@@ -268,7 +569,7 @@ async def keyword_router(message: str, context: str) -> str:
     # Only fall through to keyword matching if the context doesn't match a platform.
 
     # 📧 Email
-    if ctx == "email" or (ctx not in ("notion", "drive", "calendar", "discord", "slack", "code", "forms") and "email" in msg):
+    if ctx == "email" or (ctx not in ("notion", "drive", "calendar", "discord", "slack", "code", "forms") and ("email" in msg or "mail" in msg)):
         if any(w in msg for w in ["send", "compose", "draft", "write"]):
             return "[DRAFT_EMAIL]\nTo: \nSubject: \nBody: " + message
         result = await check_latest_emails(5)
@@ -355,6 +656,8 @@ class KeysUpdateRequest(BaseModel):
     discord: str = ""
     slack: str = ""
     gemini: str = ""
+    groq: str = ""
+    anthropic: str = ""
 
 @app.post("/update-keys")
 async def update_keys(req: KeysUpdateRequest):
@@ -363,6 +666,8 @@ async def update_keys(req: KeysUpdateRequest):
     if req.discord: update_env_key("DISCORD_BOT_TOKEN", req.discord)
     if req.slack:   update_env_key("SLACK_BOT_TOKEN", req.slack)
     if req.gemini:  update_env_key("GEMINI_API_KEY", req.gemini)
+    if req.groq:    update_env_key("GROQ_API_KEY", req.groq)
+    if req.anthropic: update_env_key("ANTHROPIC_API_KEY", req.anthropic)
     return {"response": "Keys updated successfully!"}
 
 
@@ -375,16 +680,68 @@ class ChatRequest(BaseModel):
 async def chat_with_copilot(request: ChatRequest):
     """
     Context-aware chat endpoint.
-    Receives { message, context, image_data } and routes to Gemini LLM
-    (with fallback to keyword router if Gemini key is absent).
+    Receives { message, context, image_data } and routes to Groq (primary), 
+    Gemini (secondary), Anthropic (tertiary), or keyword router based on available API keys.
     """
+    global CURRENT_ATTACHMENT
+    CURRENT_ATTACHMENT.clear()
+    
+    if request.image_data and "|||" in request.image_data:
+        parts = request.image_data.split("|||")
+        if len(parts) == 3:
+            CURRENT_ATTACHMENT["filename"] = parts[0]
+            CURRENT_ATTACHMENT["mime_type"] = parts[1]
+            try:
+                CURRENT_ATTACHMENT["data"] = base64.b64decode(parts[2])
+            except:
+                pass
+                
+        # If summarizing a PDF, natively extract text here so LLM can read it
+        if CURRENT_ATTACHMENT.get("data") and "pdf" in CURRENT_ATTACHMENT["mime_type"]:
+            try:
+                import PyPDF2
+                import io
+                reader = PyPDF2.PdfReader(io.BytesIO(CURRENT_ATTACHMENT["data"]))
+                text = "".join([page.extract_text() for page in reader.pages]).strip()
+                request.message += f"\n\n[Attached PDF Content of {parts[0]}]:\n{text[:10000]}"
+            except Exception as e:
+                request.message += f"\n\n[Failed to extract text from PDF: {e}]"
+                
+        # If it's a code file or pure text file, try to natively decode it
+        elif CURRENT_ATTACHMENT.get("data"):
+            try:
+                text = CURRENT_ATTACHMENT["data"].decode('utf-8')
+                print(f"[DEBUG] Decoded {len(text)} characters from {parts[0]}")
+                request.message += f"\n\n---START OF SECURE FILE ATTACHMENT ({parts[0]})---\n{text[:15000]}\n---END OF FILE ATTACHMENT---\n(System note to LLM: the file data has been physically provided to you above. Do not ask for it. Read the raw text block above to summarize the file!)"
+            except UnicodeDecodeError:
+                print(f"[DEBUG] Failed to decode {parts[0]} as UTF-8.")
+                pass
+                
     try:
-        response = await call_gemini(
-            message=request.message,
-            context=request.context,
-            image_data=request.image_data
-        )
+        from core.auth import get_anthropic_key, get_gemini_key, get_groq_key
+        
+        # 1. Try Groq Primary
+        if get_groq_key():
+            response = await call_groq(message=request.message, context=request.context, image_data=request.image_data)
+            if not response.startswith("⚠️ Groq Error"):
+                return {"response": response}
+                
+        # 2. Try Gemini Secondary
+        if get_gemini_key():
+            response = await call_gemini(message=request.message, context=request.context, image_data=request.image_data)
+            if not response.startswith("⚠️ Gemini") and not response.startswith("CRITICAL AI CRASH"):
+                return {"response": response}
+                
+        # 3. Try Anthropic Tertiary
+        if get_anthropic_key():
+            response = await call_anthropic(message=request.message, context=request.context, image_data=request.image_data)
+            if not response.startswith("⚠️ Anthropic"):
+                return {"response": response}
+                
+        # 4. Local Fallback Route
+        response = await keyword_router(request.message, request.context)
         return {"response": response}
+        
     except Exception as e:
         print(f"[Chat Error] {traceback.format_exc()}")
         return {"response": f"⚠️ Something went wrong: {str(e)}. Please try again."}
@@ -393,10 +750,22 @@ async def chat_with_copilot(request: ChatRequest):
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
+    has_anthropic = bool(get_anthropic_key())
     has_gemini = bool(get_gemini_key())
+    has_groq = bool(get_groq_key())
+    
+    if has_groq:
+        llm = "groq"
+    elif has_gemini:
+        llm = "gemini"
+    elif has_anthropic:
+        llm = "anthropic"
+    else:
+        llm = "keyword-fallback"
+        
     return {
         "status": "ok",
-        "llm": "gemini" if has_gemini else "keyword-fallback",
+        "llm": llm,
         "tools_registered": len(TOOL_FUNCTIONS),
     }
 

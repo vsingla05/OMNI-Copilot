@@ -13,6 +13,7 @@ const API_BASE = 'http://localhost:8000';
 
 /* ── Context-specific titles ── */
 const CONTEXT_HEADER = {
+  omni:     { title: 'Omni Copilot',            sub: 'Your universal AI agent for all integrations',  color: '#818CF8' },
   email:    { title: 'Email Copilot',           sub: 'Read, compose, and manage your Gmail',          color: '#F87171' },
   calendar: { title: 'Calendar Intelligence',   sub: 'Create, query, and organize your schedule',     color: '#60A5FA' },
   drive:    { title: 'Drive Navigator',          sub: 'Search, upload, and manage your files',         color: '#34D399' },
@@ -24,6 +25,7 @@ const CONTEXT_HEADER = {
 };
 
 const WELCOME_MESSAGES = {
+  omni:     "Hey there! I'm Omni Copilot ✦\n\nI can interact with all your tools from this single interface. Try:\n• \"Read my latest emails!\"\n• \"Fetch all my Notion pages\"\n• \"Send 'Good morning' to Discord\"\n• \"Schedule a meeting for 4 PM\"",
   email:    "Hey there! I'm your Email Copilot ✦\n\nAsk me anything about your Gmail:\n• \"Show my latest emails\"\n• \"Send an email to hr@company.com\"\n• \"Delete that email\"",
   calendar: "Hey there! I'm your Calendar Agent ✦\n\nI manage your Google Calendar:\n• \"What events do I have today?\"\n• \"Create a meeting at 3 PM tomorrow\"\n• \"Cancel my 4 PM standup\"",
   drive:    "Hey there! I'm your Drive Navigator ✦\n\nI can explore your Google Drive:\n• \"List my Drive files\"\n• \"Search for project docs\"\n• \"Upload a new document\"",
@@ -79,7 +81,7 @@ function AppInner() {
 
   // Layout state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeSection, setActiveSection]       = useState('email');
+  const [activeSection, setActiveSection]       = useState('omni');
   const [isMobile, setIsMobile]                 = useState(window.innerWidth < 900);
   const [mobileTab, setMobileTab]               = useState('chat');
   const [isIntegrationsOpen, setIntegrationsOpen] = useState(false);
@@ -172,9 +174,23 @@ function AppInner() {
       }
 
       const lower = response.toLowerCase();
-      if (lower.includes('sent successfully'))    addToast('Sent! ✉️', 'success');
-      if (lower.includes('created successfully')) addToast('Created! ✦', 'success');
-      if (lower.includes('deleted successfully')) addToast('Deleted!', 'success');
+
+      // ── Success toasts (per-platform & generic) ──
+      if (lower.includes('sent successfully'))        addToast('Email sent! ✉️', 'success');
+      else if (lower.includes('created successfully')) addToast('Created! ✦', 'success');
+      else if (lower.includes('deleted successfully') || lower.includes('moved to trash')) addToast('Deleted!', 'success');
+      else if (lower.includes('message sent to slack')) addToast('Slack message posted! 💬', 'success');
+      else if (lower.includes('message sent to discord')) addToast('Discord message posted! 👾', 'success');
+      else if (lower.includes('notion page') && lower.includes('successfully')) addToast('Notion page published! 📝', 'success');
+      else if (lower.includes('google form') && lower.includes('successfully')) addToast('Form created! 📋', 'success');
+      else if (lower.includes('uploaded') && lower.includes('successfully')) addToast('Uploaded to Drive! 📁', 'success');
+      else if (lower.includes('event') && lower.includes('successfully')) addToast('Calendar event saved! 📅', 'success');
+      else if (lower.includes('successfully')) addToast('Done! ✦', 'success');
+
+      // ── Error toasts ──
+      if (lower.includes('⚠️') || lower.includes('failed') || lower.includes('error:')) {
+        addToast('Something went wrong. Check the response.', 'error');
+      }
 
     } catch (err) {
       const msg = err.response?.data?.detail || err.message || 'Request failed.';

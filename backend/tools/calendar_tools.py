@@ -17,6 +17,8 @@ def _parse_datetime(date_str: str, time_str: str) -> str:
         "%B %d %Y %I:%M %p",
         "%b %d, %Y %I:%M %p",
         "%b %d %Y %I:%M %p",
+        "%d %B %Y %I:%M %p",
+        "%d %B %Y %H:%M",
         "%Y-%m-%d %I:%M %p",
         "%Y-%m-%d %H:%M",
         "%B %d, %Y %H:%M",
@@ -34,18 +36,36 @@ def _parse_datetime(date_str: str, time_str: str) -> str:
     raise ValueError(f"Could not parse: '{combined}'. Use format like 'April 11, 2026' and '4:00 PM'.")
 
 
-async def get_upcoming_events(max_results: int = 5) -> str:
+async def get_upcoming_events(max_results: int = 5, date: str = None) -> str:
     """Gets the next upcoming events from the user's Google Calendar.
     Use this when the user asks about their schedule, calendar, events, or meetings.
+    If 'date' is provided (e.g., 'April 20, 2026'), fetches events specifically for that day.
     Returns formatted lines like: ID: <id> | Event: <title> | At: <datetime>"""
     try:
         _, _, calendar = get_google_services()
-        now = datetime.utcnow().isoformat() + 'Z'
-        results = calendar.events().list(
-            calendarId='primary', timeMin=now,
-            maxResults=max_results, singleEvents=True,
-            orderBy='startTime'
-        ).execute()
+        
+        if date:
+            start_iso = _parse_datetime(date, "12:00 AM")
+            end_dt = datetime.fromisoformat(start_iso) + timedelta(days=1)
+            time_min = start_iso
+            time_max = end_dt.isoformat()
+        else:
+            time_min = datetime.utcnow().isoformat() + 'Z'
+            time_max = None
+
+        if time_max:
+            results = calendar.events().list(
+                calendarId='primary', timeMin=time_min, timeMax=time_max,
+                maxResults=max_results, singleEvents=True,
+                orderBy='startTime'
+            ).execute()
+        else:
+            results = calendar.events().list(
+                calendarId='primary', timeMin=time_min,
+                maxResults=max_results, singleEvents=True,
+                orderBy='startTime'
+            ).execute()
+            
         events = results.get('items', [])
 
         if not events:

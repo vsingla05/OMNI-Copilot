@@ -8,6 +8,7 @@ from core.auth import get_google_services
 async def search_drive_files(query: str = "", limit: int = 5) -> str:
     """Lists or searches files in the user's Google Drive.
     Use this tool when the user asks to list, search, find, or show their Drive files.
+    This is also required to find a file's ID before deleting it!
     Args: query (optional search term to filter files by name), limit (max results to return).
     Returns formatted lines like: ID: <id> | File: <filename>"""
     try:
@@ -43,8 +44,37 @@ async def upload_text_to_drive(filename: str, content: str) -> str:
         return f"Drive upload failed: {str(e)}"
 
 
+async def upload_attached_file_to_drive() -> str:
+    """Uploads the user's currently attached file (e.g. PDF, binary, image) to Google Drive.
+    Use this tool when the user explicitly attaches a file in chat and asks to upload or save it to Drive."""
+    try:
+        from googleapiclient.http import MediaIoBaseUpload
+        import io
+        import main
+        
+        if not getattr(main, "CURRENT_ATTACHMENT", None):
+            return "No file is currently attached to the chat prompt."
+            
+        filename = main.CURRENT_ATTACHMENT.get("filename", "untitled_file")
+        mime_type = main.CURRENT_ATTACHMENT.get("mime_type", "application/octet-stream")
+        data = main.CURRENT_ATTACHMENT.get("data")
+        
+        if not data:
+            return "Failed to read binary data from the attached file."
+
+        _, drive, _ = get_google_services()
+        media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime_type, resumable=True)
+        file_meta = {'name': filename}
+        
+        created = drive.files().create(body=file_meta, media_body=media, fields='id,name').execute()
+        return f"File '{created['name']}' uploaded to Drive. ID: {created['id']}"
+    except Exception as e:
+        return f"Drive attached file upload failed: {str(e)}"
+
+
 async def delete_drive_file(file_id: str) -> str:
     """Permanently deletes a file from Google Drive by its file ID.
+    CRITICAL: If the user provides a filename instead of an ID, you MUST use the search_drive_files tool first to find the file's ID before calling this delete tool.
     Use this tool when the user asks to delete or remove a file from Drive."""
     try:
         _, drive, _ = get_google_services()

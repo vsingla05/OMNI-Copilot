@@ -45,6 +45,7 @@ async def send_email(to: str, subject: str, body: str) -> str:
         message = EmailMessage()
         message.set_content(body)
         message["To"] = to
+        message["From"] = "me"
         message["Subject"] = subject
         encoded = base64.urlsafe_b64encode(message.as_bytes()).decode()
         sent = gmail.users().messages().send(userId="me", body={"raw": encoded}).execute()
