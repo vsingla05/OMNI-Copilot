@@ -87,11 +87,11 @@ export default function ActionRenderer({ text, onConfirmAction }) {
     if (fileMatch) return <DriveCard key={i} filename={fileMatch[1]} />;
 
     // Calendar READ card
-    const eventMatch = content.match(/^Event:\s*(.+?)\s*\|\s*At:\s*(.+)$/i);
+    const eventMatch = content.match(/^Event:\s*(.+?)\s*\|\s*At:\s*(.+?)(?:\s*\|\s*🔗\s*(.+))?$/i);
     const eventMatchLegacy = content.match(/^Event:\s*(.+?)\s+at\s+(.+)$/i);
     if (eventMatch || eventMatchLegacy) {
       const match = eventMatch || eventMatchLegacy;
-      return <CalendarCard key={i} eventName={match[1]} dateStr={match[2]} />;
+      return <CalendarCard key={i} eventName={match[1]} dateStr={match[2]} meetupUrl={eventMatch ? match[3] : null} />;
     }
 
     // Discord Feed Card

@@ -5,6 +5,7 @@ Provides tools for reading, creating, updating, and deleting calendar events.
 from core.auth import get_google_services
 from datetime import datetime, timedelta
 import re
+import uuid
 
 
 def _parse_datetime(date_str: str, time_str: str) -> str:
@@ -74,7 +75,9 @@ async def get_upcoming_events(max_results: int = 5, date: str = None) -> str:
         lines = []
         for ev in events:
             start = ev['start'].get('dateTime', ev['start'].get('date'))
-            lines.append(f"ID: {ev['id']} | Event: {ev['summary']} | At: {start}")
+            meet = ev.get('hangoutLink', '')
+            link_str = f" | 🔗 {meet}" if meet else ""
+            lines.append(f"ID: {ev['id']} | Event: {ev['summary']} | At: {start}{link_str}")
         return "\n".join(lines)
     except Exception as e:
         return f"Failed to read calendar: {str(e)}"
@@ -103,9 +106,17 @@ async def create_calendar_event(title: str, date: str, time: str, duration: str 
             'summary': title,
             'start': {'dateTime': start_iso},
             'end':   {'dateTime': end_dt.isoformat()},
+            'conferenceData': {
+                'createRequest': {
+                    'requestId': str(uuid.uuid4()),
+                    'conferenceSolutionKey': {'type': 'hangoutsMeet'}
+                }
+            }
         }
-        created = calendar.events().insert(calendarId="primary", body=event).execute()
-        return f"Event '{title}' created successfully! Link: {created.get('htmlLink')}"
+        created = calendar.events().insert(calendarId="primary", body=event, conferenceDataVersion=1).execute()
+        meet = created.get('hangoutLink', '')
+        m_str = f"\nMeet Link: {meet}" if meet else ""
+        return f"Event '{title}' created successfully!{m_str}"
     except Exception as e:
         return f"Event creation failed: {str(e)}"
 
@@ -119,3 +130,31 @@ async def delete_calendar_event(event_id: str) -> str:
         return f"Event {event_id} deleted successfully."
     except Exception as e:
         return f"Could not delete event: {str(e)}"
+
+
+async def create_instant_meet() -> str:
+    """Generates an instant Google Meet conference link.
+    Use this when the user asks to start a meeting right now or needs a video link immediately."""
+    try:
+        _, _, calendar = get_google_services()
+        start_iso = datetime.now().replace(tzinfo=datetime.now().astimezone().tzinfo).isoformat()
+        end_dt = datetime.now().replace(tzinfo=datetime.now().astimezone().tzinfo) + timedelta(minutes=15)
+        
+        event = {
+            'summary': "Instant Meet Room",
+            'start': {'dateTime': start_iso},
+            'end':   {'dateTime': end_dt.isoformat()},
+            'conferenceData': {
+                'createRequest': {
+                    'requestId': str(uuid.uuid4()),
+                    'conferenceSolutionKey': {'type': 'hangoutsMeet'}
+                }
+            }
+        }
+        created = calendar.events().insert(calendarId="primary", body=event, conferenceDataVersion=1).execute()
+        meet_link = created.get('hangoutLink', '')
+        if meet_link:
+            return f"Instant Google Meet created successfully! Link: {meet_link}"
+        return "Created the meeting successfully, but Google failed to generate a Meet link."
+    except Exception as e:
+        return f"Instant Meet failed: {str(e)}"

@@ -95,6 +95,11 @@ async def delete_calendar_event(event_id: str) -> str:
     """Deletes a calendar event by its event ID."""
     return await calendar_tools.delete_calendar_event(event_id)
 
+@mcp_server.tool()
+async def create_instant_meet() -> str:
+    """Generates an instant Google Meet conference link."""
+    return await calendar_tools.create_instant_meet()
+
 # 📝 Notion
 @mcp_server.tool()
 async def search_notion_pages(query: str = "") -> str:
@@ -182,6 +187,7 @@ TOOL_FUNCTIONS = {
     "get_upcoming_events": get_upcoming_events,
     "create_calendar_event": create_calendar_event,
     "delete_calendar_event": delete_calendar_event,
+    "create_instant_meet": create_instant_meet,
     "search_notion_pages": search_notion_pages,
     "create_notion_page": create_notion_page,
     "read_discord_channel": read_discord_channel,
@@ -223,6 +229,7 @@ ambiguous requests, but intelligently invoke any tool needed to fulfil the reque
   • get_upcoming_events(max_results)            – Fetch upcoming events
   • create_calendar_event(title,date,time,duration) – Schedule event
   • delete_calendar_event(event_id)             – Cancel event by ID
+  • create_instant_meet()                       – Start a live Google Meet now
 
 📝 Notion
   • search_notion_pages(query)                  – Search workspace pages
@@ -328,7 +335,8 @@ Rules for Tools:
 1. Auto-format dates/times (e.g. 'April 20, 2026', '3:00 PM') internally before calling tools. Do not ask the user for formatting.
 2. Do not invent parameters. If the user asks to upload or create a file but does NOT provide the filename or the text content, you MUST stop and ask them using [CLARIFICATION_NEEDED].
 3. CRITICAL: NEVER REFORMAT the literal string lines returned by tools! If a tool outputs "📄 MyPage | ID: 123" or "ID: 999 | Event: Team Sync", you MUST paste that EXACT string unaltered in your final text. DO NOT change the punctuation strings, DO NOT convert them into bullet points, and DO NOT change their prefixes. The system UI relies on the exact syntax to render cards.
-4. If a file upload, deletion, or creation succeeds, you MUST include the exact phrase "done successfully" anywhere in your text so the UI badge pops up."""
+4. SEQUENTIAL EXECUTION: If you need to generate a link/ID with one tool and use it in another tool (like emailing a Meet link), DO NOT execute them in parallel. Call the first tool, wait for the link, and then call the second tool!
+5. If a file upload, deletion, or creation succeeds, you MUST include the exact phrase "done successfully" anywhere in your text so the UI badge pops up."""
         
         messages = [
             {"role": "system", "content": sys_prompt_groq},
@@ -337,59 +345,56 @@ Rules for Tools:
         
         tools = build_groq_tools()
         
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            tools=tools,
-            temperature=0.7,
-        )
-        
-        msg_obj = response.choices[0].message
-        if getattr(msg_obj, "tool_calls", None):
-            messages.append({
-                "role": "assistant",
-                "content": msg_obj.content,
-                "tool_calls": [
-                    {
-                        "id": t.id,
-                        "type": "function",
-                        "function": {"name": t.function.name, "arguments": t.function.arguments}
-                    } for t in msg_obj.tool_calls
-                ]
-            })
-            
-            for tool_call in msg_obj.tool_calls:
-                fn_name = tool_call.function.name
-                fn_to_call = TOOL_FUNCTIONS.get(fn_name)
-                if fn_to_call:
-                    args_str = tool_call.function.arguments
-                    fn_args = json.loads(args_str) if args_str and args_str.strip() not in ("null", "") else {}
-                    if not isinstance(fn_args, dict):
-                        fn_args = {}
-                        
-                    # Safely typecast strings back to ints where required
-                    sig = inspect.signature(fn_to_call)
-                    for k, v in fn_args.items():
-                        if k in sig.parameters and sig.parameters[k].annotation == int:
-                            try: fn_args[k] = int(v)
-                            except: pass
-                            
-                    fn_res = await fn_to_call(**fn_args)
-                    messages.append({
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": fn_name,
-                        "content": str(fn_res)
-                    })
-            
-            final_res = client.chat.completions.create(
+        for _ in range(5):
+            response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=messages,
+                tools=tools,
                 temperature=0.7,
             )
-            return final_res.choices[0].message.content
             
-        return msg_obj.content if msg_obj.content else "Request completed successfully."
+            msg_obj = response.choices[0].message
+            if getattr(msg_obj, "tool_calls", None):
+                messages.append({
+                    "role": "assistant",
+                    "content": msg_obj.content,
+                    "tool_calls": [
+                        {
+                            "id": t.id,
+                            "type": "function",
+                            "function": {"name": t.function.name, "arguments": t.function.arguments}
+                        } for t in msg_obj.tool_calls
+                    ]
+                })
+                
+                for tool_call in msg_obj.tool_calls:
+                    fn_name = tool_call.function.name
+                    fn_to_call = TOOL_FUNCTIONS.get(fn_name)
+                    if fn_to_call:
+                        args_str = tool_call.function.arguments
+                        fn_args = json.loads(args_str) if args_str and args_str.strip() not in ("null", "") else {}
+                        if not isinstance(fn_args, dict):
+                            fn_args = {}
+                            
+                        # Safely typecast strings back to ints where required
+                        sig = inspect.signature(fn_to_call)
+                        for k, v in fn_args.items():
+                            if k in sig.parameters and sig.parameters[k].annotation == int:
+                                try: fn_args[k] = int(v)
+                                except: pass
+                                
+                        fn_res = await fn_to_call(**fn_args)
+                        messages.append({
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": fn_name,
+                            "content": str(fn_res)
+                        })
+                continue # Loop back and let LLM see the tool output!
+                
+            return msg_obj.content if msg_obj.content else "Request completed successfully."
+            
+        return "Loop execution limit reached."
         
     except Exception as e:
         trace = traceback.format_exc()

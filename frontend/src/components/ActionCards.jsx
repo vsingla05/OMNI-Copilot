@@ -1,5 +1,5 @@
 import React from 'react';
-import { Share2, FileText, Image, Sheet, Presentation } from 'lucide-react';
+import { Share2, FileText, Image, Sheet, Presentation, Video } from 'lucide-react';
 import './ActionCards.css';
 
 /* ─── Helpers ─────────────────────────────────── */
@@ -82,7 +82,7 @@ export function DriveCard({ filename }) {
 
 /* ─── Calendar Card ──────────────────────────── */
 
-export function CalendarCard({ eventName, dateStr }) {
+export function CalendarCard({ eventName, dateStr, meetupUrl }) {
   const { day, month, time } = formatEventDate(dateStr);
 
   return (
@@ -95,6 +95,11 @@ export function CalendarCard({ eventName, dateStr }) {
         <p className="action-card__title">{eventName || 'Untitled Event'}</p>
         <p className="action-card__sub">{time !== '--:--' ? time : 'All day'} · Google Calendar</p>
       </div>
+      {meetupUrl && (
+        <a href={meetupUrl} target="_blank" rel="noreferrer" className="action-card__meet-btn" onClick={e => e.stopPropagation()}>
+          <Video size={14} /> Join Meet
+        </a>
+      )}
     </div>
   );
 }
